@@ -26,6 +26,8 @@ swift test        # 35 tests, about 0.6 s, runs on macOS and Linux
 
 There is nothing to run yet. The app target will need Xcode 26 and macOS 14+.
 
+<p align="center"><img src=".github/header.png" width="760" alt="eave header"></p>
+
 ## Layout
 
 ```
