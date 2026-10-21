@@ -1,5 +1,7 @@
 # Eave
 
+<p align="center"><img src=".github/header.png" width="760" alt="eave"></p>
+
 A menu bar manager for macOS. It hides icons, runs scripts, and puts the notch to work.
 
 **Status:** early. `EaveCore` is tested. There is no app yet.
@@ -24,10 +26,6 @@ cd eave
 swift test        # 35 tests, about 0.6 s, runs on macOS and Linux
 ```
 
-There is nothing to run yet. The app target will need Xcode 26 and macOS 14+.
-
-<p align="center"><img src=".github/header.png" width="760" alt="eave header"></p>
-
 ## Layout
 
 ```
@@ -36,6 +34,8 @@ Tests/EaveCoreTests/    35 tests
 ```
 
 `EaveCore` holds no AppKit code, by rule. Everything that touches the screen will live in `EaveKit`, which does not exist yet. The split means the part that changes most gets tested in half a second, on any machine.
+
+The app target will need Xcode 26 and macOS 14+, and it does not exist yet.
 
 ## Design notes
 
