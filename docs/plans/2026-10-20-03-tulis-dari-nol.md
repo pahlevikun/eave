@@ -3,6 +3,7 @@
 **Status:** draft untuk ditinjau
 **Keputusan:** repo baru, Swift + AppKit, tanpa fork Thaw, tanpa dependency di luar Sparkle.
 **Batas verifikasi:** semua build dan test butuh macOS 26 + Xcode 26. Mesin kerja sekarang Linux, jadi plan ini menandai tiap langkah yang tidak bisa diverifikasi di sini.
+**Tooling:** build dari Linux benar-benar mungkin via [xtool](https://github.com/xtool-org/xtool), lihat §10.
 
 ---
 
@@ -668,3 +669,28 @@ CI: `swift test` untuk `EaveCore` di Linux (cepat, gratis), `xcodebuild test` un
 - Now playing di notch (boring.notch pakai `MusicManager` 25.9KB, kita cukup `MPNowPlayingInfoCenter` di v2)
 - Search ikon menu bar (butuh Screen Recording, taruh v2)
 - Trigger bersyarat (baterai, wifi, fokus). Thaw punya 20+ jenis, kita mulai dengan nol.
+
+---
+
+## 10. Build dan test dari mesin Linux ini (xtool)
+
+**Status: belum dicoba. Ini catatan pendahuluan, bukan hal yang sudah jalan.**
+
+[xtool](https://github.com/xtool-org/xtool) (13.2k bintang, MIT, terakhir push hari ini) bikin `swift build` untuk iOS **tanpa Mac dan tanpa Xcode**, langsung dari Linux. Kuncinya `Darwin Swift SDK` yang diunduh dari Xcode resmi, lalu `swift build --swift-sdk`. (`Sources/XToolSupport/SDKCommand.swift`)
+
+**Untuk project ini, relevansinya terbatas tapi nyata:**
+
+Yang berguna:
+- CI: `swift test` untuk `EaveCore` di Linux runner, gratis, tanpa macOS runner berbayar. Ini sesuatu yang bisa diuji di mesin ini.
+- `xtool new` + `xtool dev` kalau nanti muncul companion iOS (mis. remote untuk menu bar). Di plan v1: tidak ada iOS app, jadi ini tidak dipakai.
+
+Yang tidak dipakai:
+- Signing, App Store Connect API (`XKit`), instalasi ke iPhone. Semua itu bisnis iOS, bukan bisnis menu bar.
+
+**Coba di mesin ini dengan urutan:**
+
+1. Unduh `swift-sdk` via `xtool sdk install` (butuh Xcode 26 .xip, ±1GB).
+2. `swift build --swift-sdk arm64-apple-ios` di `Sources/EaveKit` yang belum ada. Kalau ini jalan, compiles check bisa di CI, test masih butuh macOS.
+3. Kalau gagal compile (AppKit API), tulis `#if os(macOS)` guard di satu tempat.
+
+Diskusi panjang di [forums.swift.org](https://forums.swift.org/t/xtool-cross-platform-xcode-replacement-build-ios-apps-on-linux-and-more/79803) untuk internals. Baca kalau stuck.
