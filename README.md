@@ -1,35 +1,35 @@
 # Eave
 
-Menu bar utility untuk macOS. Empat tool, satu mesin.
+A macOS menu bar utility. Four tools, one engine.
 
-- **Hide** — sembunyikan ikon menu bar, dua tingkat izin
-- **Script** — plugin xbar/MTMR jalan di menu bar
-- **Notch** — notch sebagai permukaan, bukan cuma lubang
-- **Touch Bar** — seluruh bar diambil alih
+- **Hide** — declutter menu bar icons, two permission tiers
+- **Script** — run xbar/MTMR plugins in the menu bar
+- **Notch** — the notch as a surface, not just a hole
+- **Touch Bar** — take over the entire bar
 
-Status: fondasi. `EaveCore` sudah ada dan teruji. `EaveKit` dan app target
-belum.
+Status: foundation. `EaveCore` exists and is tested. `EaveKit` and the app
+target do not.
 
-## Bangun
+## Build
 
 ```sh
-swift test        # 35 test, jalan di macOS dan Linux
+swift test        # 35 tests, runs on macOS and Linux
 ```
 
-App target butuh Xcode 26 dan macOS 14+. Library-nya tidak.
+The app target needs Xcode 26 and macOS 14+. The library doesn't.
 
-## Bentuk
+## Shape
 
 ```
-Sources/EaveCore/       model, parser, runner, geometri — tanpa AppKit
-Tests/EaveCoreTests/    35 test
-docs/plans/             rencana: app, ikon, dari nol
+Sources/EaveCore/       models, parsers, runner, geometry — no AppKit
+Tests/EaveCoreTests/    35 tests
+docs/plans/             plans: one app, icons, from scratch
 ```
 
-Aturan: `EaveCore` tidak boleh `import AppKit`. Semua yang menyentuh UI hidup
-di `EaveKit`. Alasannya bukan kerapian, tapi supaya bagian yang paling sering
-berubah bisa diuji dalam 0.5 detik tanpa Xcode.
+Rule: `EaveCore` may not `import AppKit`. Anything that touches UI lives in
+`EaveKit`. Not for tidiness — so the part that changes most can be tested in
+0.5 s without Xcode.
 
-## Lisensi
+## License
 
-Belum ditetapkan. Kalau App Store masuk rencana, GPL menutup pintu itu.
+Not decided yet. If the App Store is on the table, GPL closes that door.
