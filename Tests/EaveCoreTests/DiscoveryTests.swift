@@ -75,13 +75,14 @@ struct PluginDiscoveryTests {
         try write(dir, "clock.5s.sh")
         try write(dir, "cpu.sh")
 
-        let plugins = try PluginDiscovery.scan(directory: dir)
-        #expect(plugins.count == 2)
-        #expect(plugins[0].filename == "clock.5s.sh")
-        #expect(plugins[0].interval.seconds == 5)
-        #expect(plugins[0].namespace == "clock")
-        #expect(plugins[1].interval.seconds == RefreshInterval.default.seconds)
-        #expect(plugins[1].namespace == "cpu")
+        let result = try PluginDiscovery.scan(directory: dir)
+        #expect(result.plugins.count == 2)
+        #expect(result.rejections.isEmpty)
+        #expect(result.plugins[0].filename == "clock.5s.sh")
+        #expect(result.plugins[0].interval.seconds == 5)
+        #expect(result.plugins[0].namespace == "clock")
+        #expect(result.plugins[1].interval.seconds == RefreshInterval.default.seconds)
+        #expect(result.plugins[1].namespace == "cpu")
     }
 
     @Test func skipsNonExecutableAndHiddenFiles() throws {
@@ -90,8 +91,9 @@ struct PluginDiscoveryTests {
         try write(dir, "notes.txt", executable: false)
         try write(dir, ".hidden.sh")
 
-        let plugins = try PluginDiscovery.scan(directory: dir)
-        #expect(plugins.map(\.filename) == ["run.sh"])
+        let result = try PluginDiscovery.scan(directory: dir)
+        #expect(result.plugins.map(\.filename) == ["run.sh"])
+        #expect(result.rejections.isEmpty)
     }
 
     @Test func sortsByName() throws {
@@ -99,13 +101,52 @@ struct PluginDiscoveryTests {
         try write(dir, "zeta.sh")
         try write(dir, "alpha.sh")
         try write(dir, "mid.sh")
-        #expect(try PluginDiscovery.scan(directory: dir).map(\.filename) == ["alpha.sh", "mid.sh", "zeta.sh"])
+        #expect(
+            try PluginDiscovery.scan(directory: dir).plugins.map(\.filename)
+                == ["alpha.sh", "mid.sh", "zeta.sh"]
+        )
     }
 
     @Test func namespaceStripsIntervalAndExtension() {
         #expect(Plugin.namespace(fromFilename: "clock.5s.sh") == "clock")
         #expect(Plugin.namespace(fromFilename: "git-status.sh") == "git-status")
         #expect(Plugin.namespace(fromFilename: "weather.1d.sh") == "weather")
+    }
+
+    @Test func namespaceIgnoresNonIntervalSuffixes() {
+        // "status" is not an interval, so it stays part of the name.
+        #expect(Plugin.namespace(fromFilename: "git-status.sh") == "git-status")
+        // A bare name keeps everything.
+        #expect(Plugin.namespace(fromFilename: "clock.sh") == "clock")
+        // Digits with an unknown unit are not an interval either.
+        #expect(Plugin.namespace(fromFilename: "backup.5x.sh") == "backup.5x")
+    }
+
+    @Test func duplicateNamespaceRejectsTheSecondFile() throws {
+        let dir = try makeDir()
+        try write(dir, "clock.5s.sh")
+        try write(dir, "clock.1m.sh")
+
+        let result = try PluginDiscovery.scan(directory: dir)
+        // Sorted order: 1m comes first, so it is kept and 5s is rejected.
+        #expect(result.plugins.map(\.filename) == ["clock.1m.sh"])
+        #expect(
+            result.rejections == [
+                .init(filename: "clock.5s.sh", reason: .duplicateNamespace(kept: "clock.1m.sh"))
+            ]
+        )
+    }
+
+    @Test func collidingFilesStillHaveDistinctIdentities() throws {
+        let dir = try makeDir()
+        try write(dir, "clock.5s.sh")
+        try write(dir, "clock.1m.sh")
+
+        let result = try PluginDiscovery.scan(directory: dir)
+        // The kept file keeps its own id; the rejected one is simply absent,
+        // so state for it would be dropped on the next setPlugins.
+        #expect(result.plugins[0].id == "clock.1m.sh")
+        #expect(result.plugins.contains { $0.id == "clock.5s.sh" } == false)
     }
 
     @Test func throwsWhenDirectoryMissing() {

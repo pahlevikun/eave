@@ -53,7 +53,9 @@ Sources/EaveCore/
 testable in half a second on any machine.
 
 ```swift
-let plugins = try PluginDiscovery.scan(directory: "\(NSHomeDirectory())/.eave/plugins")
+let scan = try PluginDiscovery.scan(directory: "\(NSHomeDirectory())/.eave/plugins")
+// scan.plugins    what loaded
+// scan.rejections files refused, with a reason (duplicate names)
 
 let scheduler = PluginScheduler { plugin, outcome in
     switch outcome {
