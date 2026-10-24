@@ -39,7 +39,7 @@ final class PluginFolderWatcher {
 
         guard let created = FSEventStreamCreate(
             nil,
-            { _, clientInfo, _: Int, _: CFArray?, _, _ in
+            { _, clientInfo, _, _, _, _ in
                 guard let clientInfo else { return }
                 let watcher = Unmanaged<PluginFolderWatcher>
                     .fromOpaque(clientInfo)
