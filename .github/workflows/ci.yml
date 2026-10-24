@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+      # Cache misses are normal on first run or when Package.swift / Package.resolved change.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.build
+            .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved', 'Package.swift') }}
+      - run: swift build
+      - run: swift test
+
+  appkit:
+    name: appkit
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+      # Cache misses are normal on first run or when Package.swift / Package.resolved change.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.build
+            .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved', 'Package.swift') }}
+      - run: swift build
+      - run: swift test
+
+  app:
+    name: app
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Build Eave (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -project Eave.xcodeproj -scheme Eave -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build

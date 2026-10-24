@@ -2,6 +2,8 @@
 
 <p align="center"><img src=".github/header.png" width="760" alt="eave"></p>
 
+[![Build](https://github.com/pahlevikun/eave/actions/workflows/ci.yml/badge.svg)](https://github.com/pahlevikun/eave/actions/workflows/ci.yml)
+
 A menu bar manager for macOS. **There is no app yet.** This repo is the library
 underneath one: plugin discovery, a script runner, two output parsers, and the
 geometry the UI will need.
