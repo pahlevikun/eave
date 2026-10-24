@@ -64,10 +64,9 @@ final class AppState: ObservableObject {
         separatorEngine.startObserving()
         touchBarPresenter.enableCustomizationMenuItem()
         rescanPlugins()
+        // The watcher already hops to the main actor before calling this.
         pluginWatcher = PluginFolderWatcher(path: pluginsDirectory) { [weak self] in
-            Task { @MainActor in
-                self?.rescanPlugins()
-            }
+            self?.rescanPlugins()
         }
         if pluginWatcher?.start() == false {
             watcherFailed = true
