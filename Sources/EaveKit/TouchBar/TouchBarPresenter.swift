@@ -3,37 +3,41 @@ import AppKit
 import EaveCore
 
 @MainActor
-public final class TouchBarPresenter: NSResponder {
+public final class TouchBarPresenter: NSObject, NSTouchBarProvider {
     public static let maxVisibleEntries = 14
 
-    private let touchBar = NSTouchBar()
+    public var touchBar: NSTouchBar?
+
     private var lastEntries: [TouchBarEntry] = []
     private var hrefByID: [String: String] = [:]
     public var isEnabled = true {
         didSet { refreshBar() }
     }
 
-    public init() {
+    public override init() {
         super.init()
-        touchBar.defaultItemIdentifiers = []
-        touchBar.principalItemIdentifier = .principalLabel
-        touchBar.delegate = self
+        let bar = NSTouchBar()
+        bar.defaultItemIdentifiers = []
+        bar.principalItemIdentifier = .principalLabel
+        bar.delegate = self
+        touchBar = bar
     }
 
-    public func install() {
+    public func enableCustomizationMenuItem() {
         NSApp?.isAutomaticCustomizeTouchBarMenuItemEnabled = true
-        if NSApp?.mainWindow == nil {
-            let window = NSWindow(
-                contentRect: .zero,
-                styleMask: [.borderless],
-                backing: .buffered,
-                defer: true
-            )
-            window.isReleasedWhenClosed = false
-            window.orderOut(nil)
-            window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Attaches this presenter's Touch Bar to `window`. Menu-bar-only apps (LSUIElement)
+    /// usually have no document window, so nothing calls this unless you pass a window
+    /// explicitly (for example the settings window).
+    public func attach(to window: NSWindow) {
+        window.touchBar = touchBar
+    }
+
+    public func detach(from window: NSWindow) {
+        if window.touchBar === touchBar {
+            window.touchBar = nil
         }
-        NSApp?.mainWindow?.makeFirstResponder(self)
     }
 
     public func update(scriptItems: [ScriptItem]) {
@@ -71,8 +75,7 @@ public final class TouchBarPresenter: NSResponder {
             identifiers = [.principalLabel]
             lastEntries = []
         }
-        touchBar.defaultItemIdentifiers = identifiers
-        NSApp?.mainWindow?.touchBar = touchBar
+        touchBar?.defaultItemIdentifiers = identifiers
     }
 
     private static func entries(from items: [ScriptItem]) -> (
@@ -92,7 +95,7 @@ public final class TouchBarPresenter: NSResponder {
         return (result, hrefs)
     }
 
-    private static func estimatedWidth(for entry: TouchBarEntry) -> Double {
+    nonisolated private static func estimatedWidth(for entry: TouchBarEntry) -> Double {
         if entry.isSpacer { return 16 }
         return max(48, Double(entry.title.count) * 8 + 24)
     }

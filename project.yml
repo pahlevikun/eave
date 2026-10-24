@@ -17,8 +17,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.eave.app
         SWIFT_VERSION: "6.0"
     info:
+      path: Eave/Info.plist
       properties:
         LSUIElement: true
+        CFBundleName: Eave
+        CFBundleShortVersionString: "0.1"
+        CFBundleVersion: "1"
     dependencies:
       - package: Eave
         product: EaveCore
