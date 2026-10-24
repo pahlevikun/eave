@@ -1,15 +1,15 @@
 import Foundation
 
-/// Menjalankan script plugin dengan batas waktu dan batas output.
+/// Runs a plugin script with a wall-clock timeout and an output cap.
 ///
-/// Plugin adalah kode user: bisa menggantung, bisa membanjiri stdout.
-/// Keduanya harus dijinakkan di sini, bukan di pemanggil.
+/// A plugin is user code. It can hang, and it can flood stdout. Both get
+/// tamed here, not in the caller.
 ///
-/// Output ditampung di file sementara, bukan pipe. Alasannya konkret: proses
-/// cucu (mis. `sleep` di dalam shell) ikut memegang ujung tulis pipe, jadi
-/// pembaca pipe tidak pernah melihat EOF dan pemanggil menggantung meski anak
-/// sudah dibunuh. File tidak punya masalah itu, dan batas ukuran tetap bisa
-/// ditegakkan saat membaca.
+/// Output goes to a temp file rather than a pipe, for a concrete reason: a
+/// grandchild process (the `sleep` inside a shell) also holds the write end
+/// of a pipe, so the pipe reader never sees EOF and the caller hangs even
+/// after the child is killed. A file has no such problem, and the size cap
+/// can still be enforced at read time.
 public struct ScriptRunner: Sendable {
     public struct Output: Sendable {
         public let stdout: String
@@ -23,8 +23,8 @@ public struct ScriptRunner: Sendable {
         case timedOut(seconds: Double)
     }
 
-    /// Batas keluaran. 1MB cukup untuk plugin apa pun yang masuk akal, dan
-    /// mencegah plugin rusak menghabiskan disk atau memori.
+    /// Output cap. 1 MB covers any reasonable plugin and stops a broken one
+    /// from eating disk or memory.
     public static let outputLimit = 1 << 20
 
     public let timeout: TimeInterval
@@ -58,8 +58,8 @@ public struct ScriptRunner: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
-        // Lingkungan minimal: plugin tidak butuh seluruh environment user,
-        // dan mewariskan semuanya membuat token/secret ikut terbaca.
+        // Minimal environment: a plugin needs none of the user's shell setup,
+        // and inheriting all of it exposes tokens and secrets to the child.
         process.environment = environment ?? [
             "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin",
             "HOME": NSHomeDirectory(),
@@ -97,12 +97,12 @@ public struct ScriptRunner: Sendable {
         return !process.isRunning
     }
 
-    /// SIGTERM dulu supaya script sempat membersihkan diri, lalu SIGKILL.
+    /// SIGTERM first so the script can clean up, then SIGKILL.
     ///
-    /// Sinyal dikirim ke seluruh process group (`-pid`), bukan ke anak saja.
-    /// Anak biasanya shell, dan cucunya (`sleep`, `curl`) yang sebenarnya
-    /// menggantung; membunuh shell tidak menyentuh cucu, sehingga
-    /// `waitUntilExit()` menunggu sampai cucu selesai sendiri.
+    /// The signal goes to the whole process group (`-pid`), not just the
+    /// child. The child is usually a shell, and the grandchild (`sleep`,
+    /// `curl`) is what actually hangs. Killing the shell leaves the
+    /// grandchild alive, and `waitUntilExit()` then waits for it.
     private func terminate(_ process: Process) {
         let pid = process.processIdentifier
         kill(-pid, SIGTERM)
@@ -116,7 +116,7 @@ public struct ScriptRunner: Sendable {
         process.waitUntilExit()
     }
 
-    /// Membaca file sampai batas, tanpa memuat seluruh isi ke memori lebih dulu.
+    /// Reads a file up to the cap, without loading the whole thing first.
     private func readCapped(at url: URL) -> (data: Data, truncated: Bool) {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             return (Data(), false)

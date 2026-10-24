@@ -1,14 +1,14 @@
 import Foundation
 
-/// Geometri notch, murni supaya bisa diuji tanpa layar.
+/// Notch geometry. Pure, so it can be tested without a screen.
 public enum NotchGeometry {
-    /// Gap yang ditinggalkan macOS di kiri dan kanan notch.
+    /// The gap macOS leaves on both sides of the notch.
     public static let gap: CGFloat = 24
 
-    /// Lebar notch dari dua area di kiri dan kanannya.
+    /// Notch width from the two areas beside it.
     ///
-    /// `+4` karena kedua area itu tidak menyentuh tepi notch, jadi tanpa
-    /// pembulatan ini lebar notch meleset beberapa poin.
+    /// `+4` because those areas don't touch the notch edge, so without this
+    /// correction the notch width comes out a few points short.
     public static func width(
         screenWidth: CGFloat,
         auxLeftWidth: CGFloat,
@@ -17,7 +17,8 @@ public enum NotchGeometry {
         max(0, screenWidth - auxLeftWidth - auxRightWidth + 4)
     }
 
-    /// Tinggi notch: pakai safe area, fallback ke tinggi menu bar.
+    /// Notch height: the safe area when present, otherwise the menu bar
+    /// height for the display's shape.
     public static func height(
         safeAreaTop: CGFloat,
         isNotched: Bool,
@@ -27,7 +28,7 @@ public enum NotchGeometry {
         return isNotched ? 37 : menuBarThickness
     }
 
-    /// Lebar area yang bisa dipakai item di kanan notch.
+    /// Width available to items right of the notch, after the gap.
     public static func usableWidthRightOfNotch(
         screenMaxX: CGFloat,
         notchMaxX: CGFloat

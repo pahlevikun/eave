@@ -1,7 +1,7 @@
 import Foundation
 
-/// Satu baris output plugin, siap dirender ke menu bar, notch tray, atau
-/// Touch Bar.
+/// One line of plugin output, ready to render to the menu bar, the notch
+/// tray, or the Touch Bar.
 public struct ScriptItem: Equatable, Identifiable, Sendable {
     public var title: String
     public var namespace: String
@@ -9,7 +9,7 @@ public struct ScriptItem: Equatable, Identifiable, Sendable {
     public var children: [ScriptItem]
     public var isSeparator: Bool
 
-    /// Identitas stabil lintas refresh: namespace plugin + judul baris.
+    /// Stable identity across refreshes: plugin namespace plus line title.
     public var id: String { "\(namespace):\(title)" }
 
     public init(
@@ -27,16 +27,16 @@ public struct ScriptItem: Equatable, Identifiable, Sendable {
     }
 }
 
-/// Aksi yang bisa dipasang ke satu item.
+/// An action that can be attached to one item.
 public enum ScriptAction: Equatable, Sendable {
     case shell(path: String, arguments: [String])
     case appleScript(source: String)
     case openURL(String)
 }
 
-/// Interval refresh, diurai dari nama file plugin.
+/// Refresh interval, parsed from a plugin's filename.
 ///
-/// Konvensi xbar: `foo.5s.sh`, `bar.2m.sh`, `baz.1h.sh`, `qux.1d.sh`.
+/// xbar convention: `foo.5s.sh`, `bar.2m.sh`, `baz.1h.sh`, `qux.1d.sh`.
 public struct RefreshInterval: Equatable, Sendable {
     public let seconds: Int
 
@@ -46,10 +46,11 @@ public struct RefreshInterval: Equatable, Sendable {
 
     public static let `default` = RefreshInterval(seconds: 60)
 
-    /// Mengurai akhiran interval dari nama file, mengembalikan `nil` kalau
-    /// tidak ada. Nama file tanpa akhiran tetap valid, hanya memakai default.
+    /// Parses the interval suffix from a filename. Returns `nil` when there is
+    /// none, which is not an error: a plugin without a suffix runs on the
+    /// default interval.
     public static func parse(fromFilename name: String) -> RefreshInterval? {
-        // Buang ekstensi terakhir dulu: "foo.5m.sh" -> "foo.5m"
+        // Drop the real extension first: "foo.5m.sh" -> "foo.5m"
         let base = (name as NSString).deletingPathExtension
         let last = (base as NSString).pathExtension
         guard !last.isEmpty else { return nil }

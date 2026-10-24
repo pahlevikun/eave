@@ -1,23 +1,23 @@
 import Foundation
 
-// Lebar separator untuk mode basic (nol permission).
+// Separator width for basic mode, which needs no permissions.
 //
-// Trik: satu NSStatusItem yang lebarnya digelembungkan ke ~2x lebar layar,
-// sehingga semua ikon di kirinya terdorong keluar layar. AppKit membatasi
-// panjang status item di 10.000pt.
+// The trick: one NSStatusItem inflated to roughly twice the widest screen, so
+// every icon to its left is pushed off-screen. AppKit caps a status item at
+// 10,000 pt.
 
 public enum SeparatorWidth {
-    /// Batas keras AppKit. Status item di atas ini tidak dirender.
+    /// AppKit hard cap. A status item above this is not rendered.
     public static let maxLength: CGFloat = 10_000
 
-    /// Lebar minimum supaya separator masih terlihat sebagai item.
+    /// Minimum width so the separator still reads as an item.
     public static let expandedMin: CGFloat = 500
 
-    /// Lebar saat section disembunyikan.
+    /// Width while the section is hidden.
     ///
-    /// Dihitung dari layar terlebar, bukan layar utama: menu bar diduplikasi
-    /// ke setiap layar, dan separator yang sempit di layar ultrawide
-    /// meninggalkan sebagian ikon tetap terlihat.
+    /// Computed from the widest screen, not the main one: the menu bar is
+    /// duplicated to every display, and a narrow separator on an ultrawide
+    /// leaves part of the row still visible.
     public static func collapsed(widestScreenWidth: CGFloat) -> CGFloat {
         min(max(expandedMin, widestScreenWidth * 2), maxLength)
     }
