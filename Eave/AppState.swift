@@ -60,7 +60,7 @@ final class AppState: ObservableObject {
 
     func start() {
         permissionStore.startPolling()
-        touchBarPresenter.install()
+        touchBarPresenter.enableCustomizationMenuItem()
         rescanPlugins()
         pluginWatcher = PluginFolderWatcher(path: pluginsDirectory) { [weak self] in
             Task { @MainActor in

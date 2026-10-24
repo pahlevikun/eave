@@ -3,6 +3,7 @@ import AppKit
 import EaveCore
 
 /// Builds `NSMenu` trees from `ScriptItem` values.
+@MainActor
 public enum MenuItemBuilder {
     public static func menu(for item: ScriptItem) -> NSMenu {
         let menu = NSMenu()
