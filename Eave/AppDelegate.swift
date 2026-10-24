@@ -14,6 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appState.start()
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        appState.shutdown()
+    }
+
     private func mainMenu() -> NSMenu {
         let menu = NSMenu()
         let settings = NSMenuItem(
