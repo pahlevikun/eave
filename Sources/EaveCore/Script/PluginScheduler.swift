@@ -17,6 +17,37 @@ public enum PluginOutcome: Equatable, Sendable {
     case failed(PluginFailure)
 }
 
+/// Facts about the last run of one plugin.
+///
+/// Separate from `PluginOutcome` because these are things a person reads in a
+/// settings list, not things the renderer acts on. Keeping them apart stops
+/// the renderer from having to carry exit codes around.
+public struct PluginDiagnostics: Equatable, Sendable {
+    public var finishedAt: Date
+    /// `nil` when the process never started.
+    public var exitCode: Int32?
+    /// Captured stderr, capped at `stderrLimit` characters.
+    public var stderr: String
+    /// The plugin printed more than the output cap, so its title is partial.
+    public var outputTruncated: Bool
+
+    /// Stderr shown to a person. The rest is dropped: a plugin that dumps a
+    /// stack trace should not push the interesting line off the pane.
+    public static let stderrLimit = 2_000
+
+    public init(
+        finishedAt: Date,
+        exitCode: Int32?,
+        stderr: String,
+        outputTruncated: Bool
+    ) {
+        self.finishedAt = finishedAt
+        self.exitCode = exitCode
+        self.stderr = String(stderr.prefix(Self.stderrLimit))
+        self.outputTruncated = outputTruncated
+    }
+}
+
 /// Runs plugins on their own intervals and hands each result to a callback.
 ///
 /// The actor serialises access to the run state. Plugin execution happens off
@@ -35,6 +66,7 @@ public actor PluginScheduler {
     private var plugins: [Plugin] = []
     private var lastRun: [String: Date] = [:]
     private var running: Set<String> = []
+    private var diagnostics: [String: PluginDiagnostics] = [:]
 
     public init(runner: ScriptRunner = ScriptRunner(), deliver: @escaping Delivery) {
         self.runner = runner
@@ -50,10 +82,10 @@ public actor PluginScheduler {
         let live = Set(plugins.map(\.id))
         lastRun = lastRun.filter { live.contains($0.key) }
         running = running.intersection(live)
+        diagnostics = diagnostics.filter { live.contains($0.key) }
     }
 
-    /// Runs every plugin that is due. Returns how many were started, which is
-    /// what the tests assert on.
+    /// Runs every plugin that is due. Returns how many were started.
     @discardableResult
     public func tick(now: Date = Date()) -> Int {
         let due = SchedulePlanner.due(
@@ -68,10 +100,11 @@ public actor PluginScheduler {
             let runner = self.runner
 
             Task.detached { [weak self] in
-                let outcome = Self.run(plugin: plugin, with: runner)
+                let finishedAt = Date()
+                let run = Self.run(plugin: plugin, with: runner)
                 // Record completion before delivering, so a slow callback
                 // cannot make the plugin look overdue.
-                await self?.finish(plugin: plugin, outcome: outcome)
+                await self?.finish(plugin: plugin, run: run, finishedAt: finishedAt)
             }
         }
 
@@ -82,29 +115,73 @@ public actor PluginScheduler {
         running.contains(plugin.id)
     }
 
-    private func finish(plugin: Plugin, outcome: PluginOutcome) {
+    /// The last run's facts, for the settings list. `nil` before the first run.
+    public func diagnostics(for plugin: Plugin) -> PluginDiagnostics? {
+        diagnostics[plugin.id]
+    }
+
+    private func finish(plugin: Plugin, run: Run, finishedAt: Date) {
         running.remove(plugin.id)
-        lastRun[plugin.id] = Date()
-        deliver(plugin, outcome)
+        lastRun[plugin.id] = finishedAt
+        diagnostics[plugin.id] = PluginDiagnostics(
+            finishedAt: finishedAt,
+            exitCode: run.exitCode,
+            stderr: run.stderr,
+            outputTruncated: run.truncated
+        )
+        deliver(plugin, run.outcome)
+    }
+
+    /// One run's outcome plus the facts that only a person needs.
+    private struct Run {
+        var outcome: PluginOutcome
+        var exitCode: Int32?
+        var stderr: String
+        var truncated: Bool
     }
 
     /// Maps one run to an outcome.
     ///
     /// A non-zero exit wins over parsed items: a plugin that prints something
     /// and then fails should not paint a stale title over a working one.
-    private static func run(plugin: Plugin, with runner: ScriptRunner) -> PluginOutcome {
+    private static func run(plugin: Plugin, with runner: ScriptRunner) -> Run {
         do {
             let output = try runner.run(path: plugin.path)
             guard output.exitCode == 0 else {
-                return .failed(.exitedNonZero(code: output.exitCode, stderr: output.stderr))
+                return Run(
+                    outcome: .failed(.exitedNonZero(code: output.exitCode, stderr: output.stderr)),
+                    exitCode: output.exitCode,
+                    stderr: output.stderr,
+                    truncated: output.truncated
+                )
             }
-            return .items(ScriptOutput.parse(output.stdout, namespace: plugin.namespace))
+            return Run(
+                outcome: .items(ScriptOutput.parse(output.stdout, namespace: plugin.namespace)),
+                exitCode: output.exitCode,
+                stderr: output.stderr,
+                truncated: output.truncated
+            )
         } catch ScriptRunner.RunError.notExecutable(let path) {
-            return .failed(.notExecutable(path: path))
+            return Run(
+                outcome: .failed(.notExecutable(path: path)),
+                exitCode: nil,
+                stderr: "",
+                truncated: false
+            )
         } catch ScriptRunner.RunError.timedOut(let seconds) {
-            return .failed(.timedOut(seconds: seconds))
+            return Run(
+                outcome: .failed(.timedOut(seconds: seconds)),
+                exitCode: nil,
+                stderr: "",
+                truncated: false
+            )
         } catch {
-            return .failed(.exitedNonZero(code: -1, stderr: "\(error)"))
+            return Run(
+                outcome: .failed(.notExecutable(path: plugin.path)),
+                exitCode: nil,
+                stderr: "\(error)",
+                truncated: false
+            )
         }
     }
 }

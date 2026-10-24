@@ -147,6 +147,47 @@ struct PluginSchedulerTests {
         // Back to never-run, so it is due again.
         #expect(await scheduler.tick() == 1)
     }
+
+    @Test func diagnosticsCarryExitCodeAndStderr() async throws {
+        let plugin = try makePlugin("bad.5s.sh", body: "echo 'bad flag' >&2; exit 3")
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome in box.record(outcome) }
+        await scheduler.setPlugins([plugin])
+
+        #expect(await scheduler.diagnostics(for: plugin) == nil)
+
+        _ = await scheduler.tick()
+        _ = try await box.wait()
+
+        let diagnostics = await scheduler.diagnostics(for: plugin)
+        #expect(diagnostics?.exitCode == 3)
+        #expect(diagnostics?.stderr == "bad flag\n")
+        #expect(diagnostics?.outputTruncated == false)
+    }
+
+    @Test func diagnosticsFlagTruncatedOutput() async throws {
+        let plugin = try makePlugin(
+            "loud.5s.sh",
+            body: "head -c 2000000 /dev/zero | tr '\\0' a"
+        )
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler(runner: ScriptRunner(timeout: 10)) { _, outcome in
+            box.record(outcome)
+        }
+        await scheduler.setPlugins([plugin])
+
+        _ = await scheduler.tick()
+        _ = try await box.wait()
+
+        #expect(await scheduler.diagnostics(for: plugin)?.outputTruncated == true)
+    }
+
+    @Test func diagnosticsForNeverRunPluginAreNil() async throws {
+        let plugin = try makePlugin("quiet.5s.sh", body: "echo hi")
+        let scheduler = PluginScheduler { _, _ in }
+        await scheduler.setPlugins([plugin])
+        #expect(await scheduler.diagnostics(for: plugin) == nil)
+    }
 }
 
 /// Thread-safe collector for delivered outcomes.
