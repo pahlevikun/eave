@@ -49,8 +49,12 @@ public struct ScriptRunner: Sendable {
 
         let outURL = tmpDir.appendingPathComponent("stdout")
         let errURL = tmpDir.appendingPathComponent("stderr")
-        FileManager.default.createFile(atPath: outURL.path, contents: nil)
-        FileManager.default.createFile(atPath: errURL.path, contents: nil)
+        guard FileManager.default.createFile(atPath: outURL.path, contents: nil),
+              FileManager.default.createFile(atPath: errURL.path, contents: nil)
+        else {
+            try? FileManager.default.removeItem(at: tmpDir)
+            throw CocoaError(.fileWriteUnknown)
+        }
 
         let outHandle = try FileHandle(forWritingTo: outURL)
         let errHandle = try FileHandle(forWritingTo: errURL)
