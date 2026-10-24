@@ -24,6 +24,7 @@ final class PluginFolderWatcher {
 
         var context = FSEventStreamContext(
             version: 0,
+            // passUnretained is safe because stop() tears down the stream before deinit.
             info: Unmanaged.passUnretained(self).toOpaque(),
             retain: nil,
             release: nil,
@@ -31,12 +32,14 @@ final class PluginFolderWatcher {
         )
 
         let flags = UInt32(
-            kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseLogicalFileResolution
+            kFSEventStreamCreateFlagFileEvents
+                | kFSEventStreamCreateFlagUseCFTypes
+                | kFSEventStreamCreateFlagNoDefer
         )
 
         guard let created = FSEventStreamCreate(
             nil,
-            { _, clientInfo, _, _, _, _ in
+            { _, clientInfo, _: Int, _: CFArray?, _, _ in
                 guard let clientInfo else { return }
                 let watcher = Unmanaged<PluginFolderWatcher>
                     .fromOpaque(clientInfo)
