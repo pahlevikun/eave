@@ -5,17 +5,13 @@ import EaveCore
 /// One status item whose length hides everything to its left.
 @MainActor
 public final class SeparatorEngine {
-    public typealias ItemMover = ([String]) -> Void
-
-    private let moveItems: ItemMover
     private let onExpand: () -> Void
     private let autosaveName = "com.eave.hide.separator"
     private var statusItem: NSStatusItem?
     private var isCollapsed = false
     private var screenObserver: NSObjectProtocol?
 
-    public init(moveItems: @escaping ItemMover, onExpand: @escaping () -> Void = {}) {
-        self.moveItems = moveItems
+    public init(onExpand: @escaping () -> Void = {}) {
         self.onExpand = onExpand
     }
 
@@ -26,16 +22,6 @@ public final class SeparatorEngine {
     }
 
     public var collapsed: Bool { isCollapsed }
-
-    public func apply(decision: HidePlan.Decision) {
-        switch decision {
-        case .separator:
-            toggleCollapsed()
-        case .separateThenMove(let movable, _):
-            moveItems(movable)
-            toggleCollapsed()
-        }
-    }
 
     public func toggleCollapsed() {
         if isCollapsed {
