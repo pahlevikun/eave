@@ -2,36 +2,38 @@ import Foundation
 import Testing
 @testable import EaveCore
 
-@Suite("JSONOutputParser")
-struct JSONOutputParserTests {
-    @Test func parsesTitleAndColor() {
-        let payload = JSONOutputParser.parse(##"{"title":"CPU 12%","color":"#ff0000"}"##)
-        #expect(payload?.title == "CPU 12%")
-        #expect(payload?.color == "#ff0000")
+@Suite("ScriptOutput JSON")
+struct ScriptOutputJSONTests {
+    @Test func readsTitleAndColor() {
+        let items = ScriptOutput.parse(##"{"title":"CPU 12%","color":"#ff0000"}"##, namespace: "cpu")
+        #expect(items.map(\.title) == ["CPU 12%"])
+        #expect(items.first?.parameters["color"] == "#ff0000")
     }
 
-    @Test func parsesImageOnly() {
-        let payload = JSONOutputParser.parse(#"{"image":"icon.png"}"#)
-        let item = payload.flatMap { JSONOutputParser.item(from: $0, namespace: "ns") }
-        #expect(item?.parameters["image"] == "icon.png")
-        #expect(item?.title == "")
+    @Test func readsImageOnlyPayload() {
+        let items = ScriptOutput.parse(#"{"image":"icon.png"}"#, namespace: "ns")
+        #expect(items.count == 1)
+        #expect(items[0].title == "")
+        #expect(items[0].parameters["image"] == "icon.png")
     }
 
-    @Test func rejectsPlainText() {
-        #expect(JSONOutputParser.parse("CPU 12%") == nil)
+    @Test func plainTextIsNotTreatedAsJSON() {
+        // Falls through to the line parser, which is what a non-JSON plugin needs.
+        let items = ScriptOutput.parse("CPU 12%", namespace: "cpu")
+        #expect(items.map(\.title) == ["CPU 12%"])
     }
 
-    @Test func rejectsMalformedJSON() {
-        #expect(JSONOutputParser.parse(#"{"title": }"#) == nil)
+    @Test func malformedJSONFallsBackToLineParsing() {
+        let items = ScriptOutput.parse(#"{"title": }"#, namespace: "ns")
+        // The line parser sees one line with no `---`, so the raw text is the title.
+        #expect(items.map(\.title) == [#"{"title": }"#])
     }
 
-    @Test func rejectsEmptyPayload() {
-        let payload = JSONOutputParser.parse("{}")
-        #expect(payload != nil)
-        #expect(JSONOutputParser.item(from: payload!, namespace: "ns") == nil)
+    @Test func emptyObjectYieldsNoItem() {
+        #expect(ScriptOutput.parse("{}", namespace: "ns").isEmpty)
     }
 
-    @Test func outputParserPrefersJSON() throws {
+    @Test func pluginPrintingJSONBecomesOneItem() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("eave-json-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -40,12 +42,12 @@ struct JSONOutputParserTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
 
         let output = try ScriptRunner().run(path: path)
-        let items = ScriptOutputParser.parse(output.stdout, namespace: "p")
+        let items = ScriptOutput.parse(output.stdout, namespace: "p")
         #expect(items.map(\.title) == ["hi"])
     }
 
     @Test func outputParserFallsBackToPlainText() {
-        let items = ScriptOutputParser.parse("14:22 | color=#fff", namespace: "clock")
+        let items = ScriptOutput.parse("14:22 | color=#fff", namespace: "clock")
         #expect(items.map(\.title) == ["14:22"])
         #expect(items[0].parameters["color"] == "#fff")
     }

@@ -70,109 +70,110 @@ struct SchedulePlannerTests {
 
 @Suite("PluginScheduler")
 struct PluginSchedulerTests {
-    private func makePlugin(_ name: String, body: String) throws -> (String, Plugin) {
+    private func makePlugin(_ name: String, body: String) throws -> Plugin {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("eave-sched-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let path = dir.appendingPathComponent(name).path
         try ("#!/bin/sh\n" + body + "\n").write(toFile: path, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
-        return (path, Plugin(
+        return Plugin(
             filename: name,
             path: path,
             interval: RefreshInterval.parse(fromFilename: name) ?? .default
-        ))
+        )
     }
 
     @Test func deliversParsedItems() async throws {
-        let (_, plugin) = try makePlugin("clock.5s.sh", body: #"echo "14:22""#)
+        let plugin = try makePlugin("clock.5s.sh", body: #"echo "14:22""#)
 
-        let box = ResultBox()
-        let scheduler = PluginScheduler { _, result in
-            box.record(result)
-        }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome in box.record(outcome) }
+        await scheduler.setPlugins([plugin])
 
-        let started = await scheduler.tick(plugins: [plugin])
-        #expect(started == 1)
-
-        let items = try await box.wait()
-        #expect(items.map(\.title) == ["14:22"])
+        #expect(await scheduler.tick() == 1)
+        #expect(try await box.wait() == .items([
+            ScriptItem(title: "14:22", namespace: "clock")
+        ]))
     }
 
     @Test func secondTickBeforeIntervalStartsNothing() async throws {
-        let (_, plugin) = try makePlugin("clock.1h.sh", body: #"echo hi"#)
+        let plugin = try makePlugin("clock.1h.sh", body: #"echo hi"#)
 
-        let box = ResultBox()
-        let scheduler = PluginScheduler { _, result in box.record(result) }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome in box.record(outcome) }
+        await scheduler.setPlugins([plugin])
 
-        #expect(await scheduler.tick(plugins: [plugin]) == 1)
+        #expect(await scheduler.tick() == 1)
         _ = try await box.wait()
-        #expect(await scheduler.tick(plugins: [plugin]) == 0)
+        #expect(await scheduler.tick() == 0)
     }
 
-    @Test func failingPluginStillDeliversFailure() async throws {
-        let (_, plugin) = try makePlugin("bad.5s.sh", body: "exit 7")
+    @Test func nonZeroExitIsReportedAsFailureWithItsCode() async throws {
+        let plugin = try makePlugin("bad.5s.sh", body: "echo oops >&2; exit 7")
 
-        let box = ResultBox()
-        let scheduler = PluginScheduler { _, result in box.record(result) }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome in box.record(outcome) }
+        await scheduler.setPlugins([plugin])
 
-        _ = await scheduler.tick(plugins: [plugin])
-        let items = try await box.wait()
-        // Exit 7 still prints nothing, so the parse is empty rather than a throw.
-        #expect(items.isEmpty)
+        _ = await scheduler.tick()
+        #expect(try await box.wait() == .failed(.exitedNonZero(code: 7, stderr: "oops\n")))
     }
 
-    @Test func pruneForgetsRemovedPlugins() async throws {
-        let (_, plugin) = try makePlugin("gone.5s.sh", body: "echo hi")
-        let box = ResultBox()
-        let scheduler = PluginScheduler { _, result in box.record(result) }
+    @Test func timeoutIsReportedAsFailure() async throws {
+        let plugin = try makePlugin("slow.5s.sh", body: "sleep 10")
 
-        _ = await scheduler.tick(plugins: [plugin])
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler(runner: ScriptRunner(timeout: 0.3)) { _, outcome in
+            box.record(outcome)
+        }
+        await scheduler.setPlugins([plugin])
+
+        _ = await scheduler.tick()
+        #expect(try await box.wait() == .failed(.timedOut(seconds: 0.3)))
+    }
+
+    @Test func settingPluginsForgetsRemovedOnes() async throws {
+        let plugin = try makePlugin("gone.5s.sh", body: "echo hi")
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome in box.record(outcome) }
+
+        await scheduler.setPlugins([plugin])
+        _ = await scheduler.tick()
         _ = try await box.wait()
-        await scheduler.prune(keeping: [])
-        // After prune the plugin counts as never-run again.
-        #expect(await scheduler.tick(plugins: [plugin]) == 1)
+
+        await scheduler.setPlugins([])
+        await scheduler.setPlugins([plugin])
+        // Back to never-run, so it is due again.
+        #expect(await scheduler.tick() == 1)
     }
 }
 
-/// Minimal thread-safe collector for delivery results.
-final class ResultBox: @unchecked Sendable {
+/// Thread-safe collector for delivered outcomes.
+final class OutcomeBox: @unchecked Sendable {
     private let lock = NSLock()
-    private var results: [Result<[ScriptItem], Error>] = []
-    private var waiters: [CheckedContinuation<[ScriptItem], Error>] = []
+    private var outcomes: [PluginOutcome] = []
+    private var waiters: [CheckedContinuation<PluginOutcome, Error>] = []
 
-    func record(_ result: Result<[ScriptItem], Error>) {
+    func record(_ outcome: PluginOutcome) {
         lock.lock()
-        results.append(result)
+        outcomes.append(outcome)
         let pending = waiters
         waiters.removeAll()
         lock.unlock()
-        if let first = pending.first {
-            deliver(first, result)
-            for extra in pending.dropFirst() { deliver(extra, result) }
-        }
+        for waiter in pending { waiter.resume(returning: outcome) }
     }
 
-    func wait() async throws -> [ScriptItem] {
+    func wait() async throws -> PluginOutcome {
         try await withCheckedThrowingContinuation { continuation in
             lock.lock()
-            if let first = results.first {
+            if let first = outcomes.first {
                 lock.unlock()
-                deliver(continuation, first)
+                continuation.resume(returning: first)
             } else {
                 waiters.append(continuation)
                 lock.unlock()
             }
-        }
-    }
-
-    private func deliver(
-        _ continuation: CheckedContinuation<[ScriptItem], Error>,
-        _ result: Result<[ScriptItem], Error>
-    ) {
-        switch result {
-        case .success(let items): continuation.resume(returning: items)
-        case .failure(let error): continuation.resume(throwing: error)
         }
     }
 }

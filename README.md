@@ -11,7 +11,7 @@ intervals, get parsed menu items back. What does not exist: any window, any
 status item, any of the four tools described below.
 
 ```sh
-swift test        # 59 tests, about 0.6 s, on macOS and Linux
+swift test        # 60 tests, about 0.6 s, on macOS and Linux
 ```
 
 ## Planned tools
@@ -37,13 +37,13 @@ blacklisted app is in front.
 
 ```
 Sources/EaveCore/
-  Model/ScriptItem.swift          items, actions, refresh interval
+  Model/ScriptItem.swift          items, refresh interval
   Script/ScriptRunner.swift       run a plugin, 5 s timeout, 1 MB output cap
   Script/XbarParser.swift         xbar line format, nested submenus
-  Script/JSONOutputParser.swift   MTMR JSON shape, with plain-text fallback
+  Script/ScriptOutput.swift       one door: JSON or text, both parsed here
   Script/Plugin.swift             scan a folder, read interval from the name
   Script/SchedulePlanner.swift    decide what is due, clock passed in
-  Script/PluginScheduler.swift    run due plugins, coalesce, deliver results
+  Script/PluginScheduler.swift    own the list, run what's due, report outcome
   Geometry/SeparatorWidth.swift   the 10,000 pt clamp
   Geometry/NotchGeometry.swift    notch size from the auxiliary areas
 ```
@@ -53,11 +53,16 @@ Sources/EaveCore/
 testable in half a second on any machine.
 
 ```swift
-let plugins = try PluginDiscovery.scan(directory: "~/.eave/plugins")
-let scheduler = PluginScheduler { plugin, result in
-    // Result<[ScriptItem], Error> for one plugin.
+let plugins = try PluginDiscovery.scan(directory: "\(NSHomeDirectory())/.eave/plugins")
+
+let scheduler = PluginScheduler { plugin, outcome in
+    switch outcome {
+    case .items(let items): /* draw them */
+    case .failed(let reason): /* remove the item, keep the reason */
+    }
 }
-scheduler.tick(plugins: plugins)
+await scheduler.setPlugins(plugins)
+await scheduler.tick()          // call on a timer
 ```
 
 ## Design notes

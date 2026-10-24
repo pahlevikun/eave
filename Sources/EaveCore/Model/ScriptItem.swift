@@ -7,7 +7,6 @@ public struct ScriptItem: Equatable, Identifiable, Sendable {
     public var namespace: String
     public var parameters: [String: String]
     public var children: [ScriptItem]
-    public var isSeparator: Bool
 
     /// Stable identity across refreshes: plugin namespace plus line title.
     public var id: String { "\(namespace):\(title)" }
@@ -16,22 +15,13 @@ public struct ScriptItem: Equatable, Identifiable, Sendable {
         title: String,
         namespace: String,
         parameters: [String: String] = [:],
-        children: [ScriptItem] = [],
-        isSeparator: Bool = false
+        children: [ScriptItem] = []
     ) {
         self.title = title
         self.namespace = namespace
         self.parameters = parameters
         self.children = children
-        self.isSeparator = isSeparator
     }
-}
-
-/// An action that can be attached to one item.
-public enum ScriptAction: Equatable, Sendable {
-    case shell(path: String, arguments: [String])
-    case appleScript(source: String)
-    case openURL(String)
 }
 
 /// Refresh interval, parsed from a plugin's filename.
