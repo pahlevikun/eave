@@ -5,23 +5,38 @@ import EaveCore
 /// One status item whose length hides everything to its left.
 @MainActor
 public final class SeparatorEngine {
-    private let onExpand: () -> Void
+    private let onExpand: @MainActor () -> Void
     private let autosaveName = "com.eave.hide.separator"
     private var statusItem: NSStatusItem?
     private var isCollapsed = false
     private var screenObserver: NSObjectProtocol?
 
-    public init(onExpand: @escaping () -> Void = {}) {
+    public init(onExpand: @escaping @MainActor () -> Void = {}) {
         self.onExpand = onExpand
     }
 
-    deinit {
-        if let screenObserver {
-            NotificationCenter.default.removeObserver(screenObserver)
+    public var collapsed: Bool { isCollapsed }
+
+    public func startObserving() {
+        guard screenObserver == nil else { return }
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isCollapsed else { return }
+                self.statusItem?.length = self.collapsedLength()
+            }
         }
     }
 
-    public var collapsed: Bool { isCollapsed }
+    /// The engine lives for the lifetime of the app; call this on quit rather than implicit teardown.
+    public func stopObserving() {
+        guard let screenObserver else { return }
+        NotificationCenter.default.removeObserver(screenObserver)
+        self.screenObserver = nil
+    }
 
     public func toggleCollapsed() {
         if isCollapsed {
@@ -35,7 +50,7 @@ public final class SeparatorEngine {
         ensureStatusItem()
         isCollapsed = true
         statusItem?.length = collapsedLength()
-        observeScreenChangesIfNeeded()
+        startObserving()
     }
 
     private func expand() {
@@ -55,20 +70,6 @@ public final class SeparatorEngine {
     private func collapsedLength() -> CGFloat {
         let widest = NSScreen.screens.map(\.frame.width).max() ?? 0
         return SeparatorWidth.collapsed(widestScreenWidth: widest)
-    }
-
-    private func observeScreenChangesIfNeeded() {
-        guard screenObserver == nil else { return }
-        screenObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.isCollapsed else { return }
-                self.statusItem?.length = self.collapsedLength()
-            }
-        }
     }
 
     /// Call before dropping the item so AppKit can restore its saved slot later.

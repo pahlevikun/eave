@@ -60,6 +60,8 @@ final class AppState: ObservableObject {
 
     func start() {
         permissionStore.startPolling()
+        _ = separatorEngine
+        separatorEngine.startObserving()
         touchBarPresenter.enableCustomizationMenuItem()
         rescanPlugins()
         pluginWatcher = PluginFolderWatcher(path: pluginsDirectory) { [weak self] in
@@ -77,6 +79,15 @@ final class AppState: ObservableObject {
                 await self?.tick()
             }
         }
+    }
+
+    func shutdown() {
+        tickTimer?.invalidate()
+        tickTimer = nil
+        pluginWatcher?.stop()
+        pluginWatcher = nil
+        permissionStore.stopPolling()
+        separatorEngine.stopObserving()
     }
 
     func diagnostics(for plugin: Plugin) async -> PluginDiagnostics? {

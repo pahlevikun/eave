@@ -104,7 +104,7 @@ final class ScriptsPane: NSView {
         permissionsLabel.stringValue =
             "Accessibility: \(access)   Screen Recording: \(screen)"
 
-        Task {
+        Task { @MainActor in
             var built: [Row] = []
             let now = Date()
             for plugin in appState.plugins {

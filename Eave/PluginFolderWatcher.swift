@@ -18,10 +18,6 @@ final class PluginFolderWatcher {
         self.handler = handler
     }
 
-    deinit {
-        stop()
-    }
-
     @discardableResult
     func start() -> Bool {
         guard stream == nil else { return true }
@@ -75,7 +71,7 @@ final class PluginFolderWatcher {
     private func scheduleDebouncedHandler() {
         debounceWorkItem?.cancel()
         let work = DispatchWorkItem { [handler] in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 handler()
             }
         }
