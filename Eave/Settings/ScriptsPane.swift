@@ -12,7 +12,7 @@ final class ScriptsPane: NSView {
 
     private struct Row {
         let plugin: Plugin
-        var exitCode: String
+        var statusLine: String
         var failed: Bool
     }
 
@@ -46,10 +46,10 @@ final class ScriptsPane: NSView {
         tableView.rowHeight = 22
 
         let columns: [(String, CGFloat)] = [
-            ("Filename", 200),
-            ("Interval", 80),
-            ("Exit code", 80),
-            ("Status", 60),
+            ("Filename", 180),
+            ("Interval", 70),
+            ("Status line", 240),
+            ("Failed", 50),
         ]
         for (title, width) in columns {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(title))
@@ -106,11 +106,12 @@ final class ScriptsPane: NSView {
 
         Task {
             var built: [Row] = []
+            let now = Date()
             for plugin in appState.plugins {
                 let diag = await appState.diagnostics(for: plugin)
-                let code = diag?.exitCode.map(String.init) ?? "—"
+                let line = PluginStatusText.describe(diagnostics: diag, now: now)
                 let failed = appState.lastOutcomeFailed(for: plugin)
-                built.append(Row(plugin: plugin, exitCode: code, failed: failed))
+                built.append(Row(plugin: plugin, statusLine: line, failed: failed))
             }
             rows = built
             footerLabel.stringValue = appState.rejectionFooterText()
@@ -137,9 +138,9 @@ extension ScriptsPane: NSTableViewDelegate {
             textField.stringValue = rowData.plugin.filename
         case "Interval":
             textField.stringValue = "\(rowData.plugin.interval.seconds)s"
-        case "Exit code":
-            textField.stringValue = rowData.exitCode
-        case "Status":
+        case "Status line":
+            textField.stringValue = rowData.statusLine
+        case "Failed":
             textField.stringValue = rowData.failed ? "●" : ""
             textField.textColor = rowData.failed ? .systemRed : .labelColor
         default:

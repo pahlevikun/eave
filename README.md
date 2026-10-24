@@ -45,6 +45,13 @@ a hidden section.
 **Touch Bar.** Take over the entire bar with your items, and step aside when a
 blacklisted app is in front.
 
+## Round 2 tools (in progress)
+
+**Hide** and **Notch** now have pure planning types in `EaveCore` (Linux-tested)
+and thin AppKit adapters in `EaveKit`. The macOS app wires a separator engine,
+notch panel, and Settings tabs for both. UI behaviour on macOS is not verified
+in CI.
+
 ## What the library does now
 
 ```

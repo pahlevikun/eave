@@ -30,6 +30,8 @@ public struct PluginDiagnostics: Equatable, Sendable {
     public var stderr: String
     /// The plugin printed more than the output cap, so its title is partial.
     public var outputTruncated: Bool
+    /// Set when the last run failed, so settings text can name the reason.
+    public var failure: PluginFailure?
 
     /// Stderr shown to a person. The rest is dropped: a plugin that dumps a
     /// stack trace should not push the interesting line off the pane.
@@ -39,12 +41,14 @@ public struct PluginDiagnostics: Equatable, Sendable {
         finishedAt: Date,
         exitCode: Int32?,
         stderr: String,
-        outputTruncated: Bool
+        outputTruncated: Bool,
+        failure: PluginFailure? = nil
     ) {
         self.finishedAt = finishedAt
         self.exitCode = exitCode
         self.stderr = String(stderr.prefix(Self.stderrLimit))
         self.outputTruncated = outputTruncated
+        self.failure = failure
     }
 }
 
@@ -123,11 +127,16 @@ public actor PluginScheduler {
     private func finish(plugin: Plugin, run: Run, finishedAt: Date) {
         running.remove(plugin.id)
         lastRun[plugin.id] = finishedAt
+        let failure: PluginFailure? = {
+            if case .failed(let reason) = run.outcome { return reason }
+            return nil
+        }()
         diagnostics[plugin.id] = PluginDiagnostics(
             finishedAt: finishedAt,
             exitCode: run.exitCode,
             stderr: run.stderr,
-            outputTruncated: run.truncated
+            outputTruncated: run.truncated,
+            failure: failure
         )
         deliver(plugin, run.outcome)
     }

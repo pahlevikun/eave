@@ -8,6 +8,7 @@ public final class MenuBarRenderer {
     private let pluginsDirectory: String
     private var statusItems: [String: NSStatusItem] = [:]
     private var pluginScriptPathByNamespace: [String: String] = [:]
+    private var separatedForHide: Set<String> = []
 
     public init() {
         pluginsDirectory = (NSHomeDirectory() as NSString).appendingPathComponent(".eave/plugins")
@@ -46,12 +47,57 @@ public final class MenuBarRenderer {
     }
 
     public func remove(namespace: String) {
+        separatedForHide.remove(namespace)
         guard let item = statusItems.removeValue(forKey: namespace) else { return }
         NSStatusBar.system.removeStatusItem(item)
         pluginScriptPathByNamespace.removeValue(forKey: namespace)
     }
 
     public var itemCount: Int { statusItems.count }
+
+    /// Members left of the hide separator, in bar order.
+    public func sectionMembers() -> [SectionMembership] {
+        orderedNamespaces().map { namespace in
+            SectionMembership(id: namespace, isMovable: true, isHideable: true)
+        }
+    }
+
+    /// Items currently shown in the menu bar, for notch packing.
+    public func notchTrayItems(measuredFallbackWidth: CGFloat = 24) -> [NotchTrayItem] {
+        orderedNamespaces().map { namespace in
+            let title = statusItems[namespace]?.button?.title ?? namespace
+            // Placeholder width is a lie until measured.
+            let width = measuredWidth(for: namespace) ?? measuredFallbackWidth
+            return NotchTrayItem(id: namespace, title: title, width: width)
+        }
+    }
+
+    public func measuredWidth(for namespace: String) -> CGFloat? {
+        guard let button = statusItems[namespace]?.button else { return nil }
+        button.layoutSubtreeIfNeeded()
+        let width = button.frame.width
+        guard width > 0 else { return nil }
+        return width
+    }
+
+    /// Hides movable items before the separator expands.
+    public func separateForHide(namespaces: [String]) {
+        for namespace in namespaces {
+            separatedForHide.insert(namespace)
+            statusItems[namespace]?.button?.isHidden = true
+        }
+    }
+
+    public func restoreSeparatedForHide() {
+        for namespace in separatedForHide {
+            statusItems[namespace]?.button?.isHidden = false
+        }
+        separatedForHide.removeAll()
+    }
+
+    private func orderedNamespaces() -> [String] {
+        Array(statusItems.keys)
+    }
 
     private func statusItem(for namespace: String) -> NSStatusItem {
         if let existing = statusItems[namespace] {
