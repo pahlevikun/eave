@@ -6,6 +6,7 @@ final class SettingsTabController: NSView {
     private let scriptsPane = ScriptsPane()
     private let hidePane = HidePane()
     private let notchPane = NotchPane()
+    private let touchBarPane = TouchBarPane()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -22,6 +23,7 @@ final class SettingsTabController: NSView {
         tabView.addTabViewItem(makeTab(label: "Scripts", view: scriptsPane))
         tabView.addTabViewItem(makeTab(label: "Hide", view: hidePane))
         tabView.addTabViewItem(makeTab(label: "Notch", view: notchPane))
+        tabView.addTabViewItem(makeTab(label: "Touch Bar", view: touchBarPane))
     }
 
     @available(*, unavailable)
@@ -33,6 +35,7 @@ final class SettingsTabController: NSView {
         scriptsPane.bind(appState: appState)
         hidePane.bind(appState: appState)
         notchPane.bind(appState: appState)
+        touchBarPane.bind(appState: appState)
     }
 
     private func makeTab(label: String, view: NSView) -> NSTabViewItem {

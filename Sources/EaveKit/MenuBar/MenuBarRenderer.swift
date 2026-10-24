@@ -95,6 +95,25 @@ public final class MenuBarRenderer {
         separatedForHide.removeAll()
     }
 
+    public func moverItem(for namespace: String) -> ItemMover.Item? {
+        guard let button = statusItems[namespace]?.button,
+              let window = button.window
+        else { return nil }
+        button.layoutSubtreeIfNeeded()
+        let frame = button.convert(button.bounds, to: nil)
+        let screenFrame = window.convertToScreen(frame)
+        let pid = ProcessInfo.processInfo.processIdentifier
+        return ItemMover.Item(id: namespace, frame: screenFrame, ownerPID: pid)
+    }
+
+    public func menuBarMetrics() -> (width: Double, height: Double) {
+        let screen = NSScreen.main ?? NSScreen.screens.first
+        let width = screen?.frame.width ?? 1_512
+        let topInset = screen?.safeAreaInsets.top ?? 0
+        let height = topInset > 0 ? 37.0 : 24.0
+        return (Double(width), height)
+    }
+
     private func orderedNamespaces() -> [String] {
         Array(statusItems.keys)
     }

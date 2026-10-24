@@ -12,13 +12,30 @@ final class AppState: ObservableObject {
     private(set) var lastRunFailed: [String: Bool] = [:]
 
     private lazy var separatorEngine = SeparatorEngine(
-        moveItems: { [weak self] namespaces in
-            self?.menuBarRenderer.separateForHide(namespaces: namespaces)
+        onExpand: { [weak self] in
+            self?.menuBarRenderer.restoreSeparatedForHide()
+        }
+    )
+    private lazy var itemMover = ItemMover { [weak self] id in
+        self?.menuBarRenderer.moverItem(for: id)?.frame
+    }
+    private lazy var hiddenSectionController = HiddenSectionController(
+        separatorEngine: separatorEngine,
+        itemMover: itemMover,
+        resolveItem: { [weak self] id in
+            self?.menuBarRenderer.moverItem(for: id)
+        },
+        barMetrics: { [weak self] in
+            self?.menuBarRenderer.menuBarMetrics() ?? (width: 1_512, height: 24)
         },
         onExpand: { [weak self] in
             self?.menuBarRenderer.restoreSeparatedForHide()
         }
     )
+    private let touchBarPresenter = TouchBarPresenter()
+    private var touchBarItemsByNamespace: [String: [ScriptItem]] = [:]
+    private(set) var isTouchBarEnabled = true
+
     private let notchPanel = NotchPanel()
     private(set) var notchTrayPlan = NotchTrayModel.Plan(kept: [], overflowed: [])
 
@@ -29,7 +46,7 @@ final class AppState: ObservableObject {
 
     private let pluginsDirectory: String
 
-    var isHideSectionCollapsed: Bool { separatorEngine.collapsed }
+    var isHideSectionCollapsed: Bool { hiddenSectionController.isCollapsed }
 
     init() {
         pluginsDirectory = (NSHomeDirectory() as NSString).appendingPathComponent(".eave/plugins")
@@ -43,6 +60,7 @@ final class AppState: ObservableObject {
 
     func start() {
         permissionStore.startPolling()
+        touchBarPresenter.install()
         rescanPlugins()
         pluginWatcher = PluginFolderWatcher(path: pluginsDirectory) { [weak self] in
             Task { @MainActor in
@@ -73,7 +91,18 @@ final class AppState: ObservableObject {
         let members = menuBarRenderer.sectionMembers()
         let hasAccessibility = permissionStore.granted[.accessibility] == true
         let decision = HidePlan.decide(members: members, hasAccessibility: hasAccessibility)
-        separatorEngine.apply(decision: decision)
+        hiddenSectionController.toggle(decision: decision)
+        objectWillChange.send()
+    }
+
+    func setTouchBarEnabled(_ enabled: Bool) {
+        isTouchBarEnabled = enabled
+        touchBarPresenter.isEnabled = enabled
+        if enabled {
+            refreshTouchBar()
+        } else {
+            touchBarPresenter.clearIfNeeded()
+        }
         objectWillChange.send()
     }
 
@@ -146,15 +175,24 @@ final class AppState: ObservableObject {
             lastRunFailed[plugin.id] = false
             if items.isEmpty {
                 menuBarRenderer.remove(namespace: plugin.namespace)
+                touchBarItemsByNamespace.removeValue(forKey: plugin.namespace)
             } else {
                 menuBarRenderer.apply(items, for: plugin.namespace)
+                touchBarItemsByNamespace[plugin.namespace] = items
             }
         case .failed:
             lastRunFailed[plugin.id] = true
             menuBarRenderer.remove(namespace: plugin.namespace)
+            touchBarItemsByNamespace.removeValue(forKey: plugin.namespace)
         }
+        refreshTouchBar()
         recomputeNotchTrayPlan()
         objectWillChange.send()
+    }
+
+    private func refreshTouchBar() {
+        let items = touchBarItemsByNamespace.values.flatMap { $0 }
+        touchBarPresenter.update(scriptItems: items)
     }
 
     func rejectionFooterText() -> String {
