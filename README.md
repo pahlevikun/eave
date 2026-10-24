@@ -14,6 +14,18 @@ status item, any of the four tools described below.
 swift test        # 60 tests, about 0.6 s, on macOS and Linux
 ```
 
+## Build
+
+The menu bar app is not built by Swift Package Manager alone. On a Mac with
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) installed:
+
+```sh
+xcodegen generate
+open Eave.xcodeproj
+```
+
+Build and run the `Eave` scheme from Xcode.
+
 ## Planned tools
 
 These are the plan, not the state.

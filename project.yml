@@ -1,0 +1,26 @@
+name: Eave
+options:
+  bundleIdPrefix: com.eave
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  Eave:
+    path: .
+targets:
+  Eave:
+    type: application
+    platform: macOS
+    sources:
+      - path: Eave
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.eave.app
+        SWIFT_VERSION: "6.0"
+    info:
+      properties:
+        LSUIElement: true
+    dependencies:
+      - package: Eave
+        product: EaveCore
+      - package: Eave
+        product: EaveKit
