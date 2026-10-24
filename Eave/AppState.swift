@@ -11,12 +11,25 @@ final class AppState: ObservableObject {
     private(set) var scanRejections: [PluginDiscovery.Rejection] = []
     private(set) var lastRunFailed: [String: Bool] = [:]
 
+    private lazy var separatorEngine = SeparatorEngine(
+        moveItems: { [weak self] namespaces in
+            self?.menuBarRenderer.separateForHide(namespaces: namespaces)
+        },
+        onExpand: { [weak self] in
+            self?.menuBarRenderer.restoreSeparatedForHide()
+        }
+    )
+    private let notchPanel = NotchPanel()
+    private(set) var notchTrayPlan = NotchTrayModel.Plan(kept: [], overflowed: [])
+
     private var scheduler: PluginScheduler!
     private var tickTimer: Timer?
     private var pluginWatcher: PluginFolderWatcher?
     private var watcherFailed = false
 
     private let pluginsDirectory: String
+
+    var isHideSectionCollapsed: Bool { separatorEngine.collapsed }
 
     init() {
         pluginsDirectory = (NSHomeDirectory() as NSString).appendingPathComponent(".eave/plugins")
@@ -54,6 +67,38 @@ final class AppState: ObservableObject {
 
     func lastOutcomeFailed(for plugin: Plugin) -> Bool {
         lastRunFailed[plugin.id] ?? false
+    }
+
+    func toggleHiddenSection() {
+        let members = menuBarRenderer.sectionMembers()
+        let hasAccessibility = permissionStore.granted[.accessibility] == true
+        let decision = HidePlan.decide(members: members, hasAccessibility: hasAccessibility)
+        separatorEngine.apply(decision: decision)
+        objectWillChange.send()
+    }
+
+    func toggleNotchTray() {
+        recomputeNotchTrayPlan()
+        guard let screen = NSScreen.main else { return }
+        notchPanel.toggle(plan: notchTrayPlan, on: screen)
+    }
+
+    private func recomputeNotchTrayPlan() {
+        guard let screen = NSScreen.main else { return }
+        let frame = screen.frame
+        let auxLeft = screen.auxiliaryTopLeftArea?.width ?? 0
+        let notchWidth = NotchGeometry.width(
+            screenWidth: frame.width,
+            auxLeftWidth: auxLeft,
+            auxRightWidth: screen.auxiliaryTopRightArea?.width ?? 0
+        )
+        let notchMaxX = frame.minX + auxLeft + notchWidth
+        let budget = NotchGeometry.usableWidthRightOfNotch(
+            screenMaxX: frame.maxX,
+            notchMaxX: notchMaxX
+        )
+        let items = menuBarRenderer.notchTrayItems()
+        notchTrayPlan = NotchTrayModel.plan(items: items, availableWidth: budget)
     }
 
     private func ensurePluginsDirectory() {
@@ -108,6 +153,7 @@ final class AppState: ObservableObject {
             lastRunFailed[plugin.id] = true
             menuBarRenderer.remove(namespace: plugin.namespace)
         }
+        recomputeNotchTrayPlan()
         objectWillChange.send()
     }
 

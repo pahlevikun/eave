@@ -5,21 +5,21 @@ final class SettingsWindow: NSObject {
     static let shared = SettingsWindow()
 
     private var window: NSWindow?
-    private var scriptsPane: ScriptsPane?
+    private var tabController: SettingsTabController?
 
     func show(appState: AppState) {
         if let window {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            scriptsPane?.bind(appState: appState)
+            tabController?.bind(appState: appState)
             return
         }
 
-        let pane = ScriptsPane()
-        pane.bind(appState: appState)
-        scriptsPane = pane
+        let tabs = SettingsTabController()
+        tabs.bind(appState: appState)
+        tabController = tabs
 
-        let contentSize = NSSize(width: 560, height: 360)
+        let contentSize = NSSize(width: 560, height: 400)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: contentSize),
             styleMask: [.titled, .closable, .resizable],
@@ -27,7 +27,7 @@ final class SettingsWindow: NSObject {
             defer: false
         )
         window.title = "Eave Settings"
-        window.contentView = pane
+        window.contentView = tabs
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
