@@ -55,11 +55,56 @@ struct ScriptItemActionTests {
             namespace: "clock",
             parameters: ["href": "https://example.com", "bash": "echo hi"]
         )
-        #expect(item.action == .unsupported(parameter: "bash"))
+        #expect(item.action == .runShell(command: "echo hi", arguments: []))
     }
 
     @Test func noParametersIsNone() {
         let item = ScriptItem(title: "Plain", namespace: "clock")
+        #expect(item.action == .none)
+    }
+
+    @Test func bashAloneRunsShellWithNoArguments() {
+        let item = ScriptItem(
+            title: "Shell",
+            namespace: "clock",
+            parameters: ["bash": "echo hi"]
+        )
+        #expect(item.action == .runShell(command: "echo hi", arguments: []))
+    }
+
+    @Test func bashWithParam1AndParam2() {
+        let item = ScriptItem(
+            title: "Shell",
+            namespace: "clock",
+            parameters: ["bash": "printf", "param1": "a", "param2": "b"]
+        )
+        #expect(item.action == .runShell(command: "printf", arguments: ["a", "b"]))
+    }
+
+    @Test func bashWithParam1AndParam3SkipsMissing() {
+        let item = ScriptItem(
+            title: "Shell",
+            namespace: "clock",
+            parameters: ["bash": "printf", "param1": "a", "param3": "c"]
+        )
+        #expect(item.action == .runShell(command: "printf", arguments: ["a", "c"]))
+    }
+
+    @Test func shellArgumentsSortedByParamNumber() {
+        let item = ScriptItem(
+            title: "Shell",
+            namespace: "clock",
+            parameters: ["bash": "printf", "param2": "second", "param1": "first"]
+        )
+        #expect(item.action == .runShell(command: "printf", arguments: ["first", "second"]))
+    }
+
+    @Test func whitespaceOnlyBashIsNone() {
+        let item = ScriptItem(
+            title: "Shell",
+            namespace: "clock",
+            parameters: ["bash": "   \n\t  "]
+        )
         #expect(item.action == .none)
     }
 }
