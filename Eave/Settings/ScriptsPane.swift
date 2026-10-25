@@ -254,13 +254,14 @@ final class ScriptsPane: SettingsPane, NSTableViewDataSource, NSTableViewDelegat
         let failure: String?
         switch diagnostics.failure {
         case .notExecutable: failure = "not executable"
-        case .timedOut:
+        case .timedOut, .generatedTooMuch:
             failure = PluginStatusText.describe(diagnostics: diagnostics, now: diagnostics.finishedAt)
         case .exitedNonZero: failure = "Run failed."
         case nil: failure = nil
         }
         let status = [row.running ? "Running…" : nil, failure,
-                      diagnostics.outputTruncated ? "output cut at 1 MB" : nil]
+                      diagnostics.outputTruncated ? PluginStatusText.returnedOutputTruncationNote : nil,
+                      diagnostics.generatedBytesExceeded ? PluginStatusText.generatedOutputExceededNote : nil]
             .compactMap { $0 }.joined(separator: "\n")
         let stderr = diagnostics.stderr.isEmpty ? "No stderr captured." : diagnostics.stderr
         setDetailText("\(row.plugin.filename)\nCompleted \(diagnostics.finishedAt.formatted()) · \(exit)\n\(status)\nStderr, up to \(PluginDiagnostics.stderrLimit) characters\n\(stderr)")

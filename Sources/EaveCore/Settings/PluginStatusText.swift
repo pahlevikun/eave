@@ -19,6 +19,8 @@ public enum PluginStatusText {
                 return "not executable"
             case .timedOut(let seconds):
                 return "timeout after \(formatTimeoutSeconds(seconds))"
+            case .generatedTooMuch:
+                return "stopped after \(formatByteCap(OutputLimits.default.generatedBytes))"
             case .exitedNonZero(let code, _):
                 return exitLine(code: code, diagnostics: diagnostics, now: now)
             }
@@ -26,7 +28,7 @@ public enum PluginStatusText {
 
         if diagnostics.exitCode == 0 {
             return "ok, \(formatAge(since: diagnostics.finishedAt, now: now))"
-                + (diagnostics.outputTruncated ? ", output cut at 1 MB" : "")
+                + limitSuffix(diagnostics)
         }
 
         if let code = diagnostics.exitCode {
@@ -36,16 +38,45 @@ public enum PluginStatusText {
         return "not executable"
     }
 
+    /// Detail line for returned-output truncation in Settings.
+    public static var returnedOutputTruncationNote: String {
+        "output cut at \(formatByteCap(OutputLimits.default.returnedBytes))"
+    }
+
+    /// Detail line when the child exceeded the generated cap but finished.
+    public static var generatedOutputExceededNote: String {
+        "wrote more than \(formatByteCap(OutputLimits.default.generatedBytes))"
+    }
+
     private static func exitLine(
         code: Int32,
         diagnostics: PluginDiagnostics,
         now: Date
     ) -> String {
         var line = "exit \(code), \(formatAge(since: diagnostics.finishedAt, now: now))"
-        if diagnostics.outputTruncated {
-            line += ", output cut at 1 MB"
-        }
+        line += limitSuffix(diagnostics)
         return line
+    }
+
+    private static func limitSuffix(_ diagnostics: PluginDiagnostics) -> String {
+        var suffix = ""
+        if diagnostics.outputTruncated {
+            suffix += ", \(returnedOutputTruncationNote)"
+        }
+        if diagnostics.generatedBytesExceeded {
+            suffix += ", \(generatedOutputExceededNote)"
+        }
+        return suffix
+    }
+
+    static func formatByteCap(_ bytes: Int) -> String {
+        if bytes >= 1 << 20, bytes.isMultiple(of: 1 << 20) {
+            return "\(bytes >> 20) MB"
+        }
+        if bytes >= 1 << 10, bytes.isMultiple(of: 1 << 10) {
+            return "\(bytes >> 10) KB"
+        }
+        return "\(bytes) B"
     }
 
     private static func formatTimeoutSeconds(_ seconds: Double) -> String {
