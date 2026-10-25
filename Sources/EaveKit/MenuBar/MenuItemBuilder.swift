@@ -18,6 +18,7 @@ public enum MenuItemBuilder {
         let entry = NSMenuItem(title: displayTitle, action: nil, keyEquivalent: "")
         entry.applyRowTitle(displayTitle, color: item.color)
         entry.representedObject = item
+        KeyboardShortcutKit.apply(item.presentation.shortcut, to: entry)
 
         if item.children.isEmpty {
             switch item.action {
@@ -41,7 +42,10 @@ final class MenuItemActionTarget: NSObject {
 
     @objc func perform(_ sender: NSMenuItem) {
         guard let item = sender.representedObject as? ScriptItem else { return }
-        ActionDispatcher.perform(item.action, shell: ActionDispatcher.productionShellExecutor)
+        let ran = ActionDispatcher.perform(item.action, shell: ActionDispatcher.productionShellExecutor)
+        if ran {
+            MenuBarActions.didPerform?(item)
+        }
     }
 }
 #endif
