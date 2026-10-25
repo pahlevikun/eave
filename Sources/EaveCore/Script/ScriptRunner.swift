@@ -60,7 +60,7 @@ public struct ScriptRunner: Sendable {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("eave-run-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        defer { Self.removeTemporaryRunDirectory(tmpDir) }
 
         let outURL = tmpDir.appendingPathComponent("stdout")
         let errURL = tmpDir.appendingPathComponent("stderr")
@@ -186,8 +186,16 @@ public struct ScriptRunner: Sendable {
         while process.isRunning, Date() < killDeadline {
             Thread.sleep(forTimeInterval: Self.pollInterval)
         }
-        if process.isRunning {
+        if !process.isRunning {
             process.waitUntilExit()
+        }
+    }
+
+    private static func removeTemporaryRunDirectory(_ url: URL) {
+        for _ in 0..<10 {
+            try? FileManager.default.removeItem(at: url)
+            if !FileManager.default.fileExists(atPath: url.path) { return }
+            Thread.sleep(forTimeInterval: Self.pollInterval)
         }
     }
 
