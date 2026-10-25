@@ -51,10 +51,10 @@ struct ScriptRunnerLimitsTests {
         OutputLimits(returnedBytes: returned, generatedBytes: generated)
     }
 
-    private func countEaveRunDirs() -> Int {
+    private func eaveRunDirNames() -> Set<String> {
         let tmp = FileManager.default.temporaryDirectory
         let names = (try? FileManager.default.contentsOfDirectory(atPath: tmp.path)) ?? []
-        return names.filter { $0.hasPrefix("eave-run-") }.count
+        return Set(names.filter { $0.hasPrefix("eave-run-") })
     }
 
     @Test func smallOutputWithinReturnedCap() throws {
@@ -151,20 +151,20 @@ struct ScriptRunnerLimitsTests {
     }
 
     @Test func tempDirectoryRemovedOnSuccessTimeoutAndRefusal() throws {
-        let before = countEaveRunDirs()
+        let before = eaveRunDirNames()
         let okPath = try makeScript("echo ok")
         _ = try ScriptRunner().run(path: okPath)
-        #expect(countEaveRunDirs() == before)
+        #expect(eaveRunDirNames().subtracting(before).isEmpty)
 
         let slowPath = try makeScript("sleep 10")
         #expect(throws: ScriptRunner.RunError.self) {
             try ScriptRunner(timeout: 0.2).run(path: slowPath)
         }
-        #expect(countEaveRunDirs() == before)
+        #expect(eaveRunDirNames().subtracting(before).isEmpty)
 
         #expect(throws: ScriptRunner.RunError.self) {
             try ScriptRunner().run(path: "/etc/hostname")
         }
-        #expect(countEaveRunDirs() == before)
+        #expect(eaveRunDirNames().subtracting(before).isEmpty)
     }
 }
