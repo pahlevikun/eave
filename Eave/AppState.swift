@@ -44,7 +44,13 @@ final class AppState: ObservableObject {
     private(set) var preferencesPersistenceWarning: String?
     private var suppressPreferenceSave = false
 
-    private lazy var notchPanel = NotchPanel { [weak self] in self?.objectWillChange.send() }
+    private lazy var notchPanel: NotchPanel = {
+        let panel = NotchPanel { [weak self] in self?.objectWillChange.send() }
+        panel.setPerformHandler { [weak self] trayItem, action in
+            self?.performNotchTrayAction(for: trayItem, action: action) ?? false
+        }
+        return panel
+    }()
     private(set) var notchTrayPlan = NotchTrayModel.Plan(kept: [], overflowed: [])
 
     private var scheduler: PluginScheduler!
@@ -165,6 +171,14 @@ final class AppState: ObservableObject {
         guard let screen = NSScreen.main else { return }
         notchPanel.toggle(plan: notchTrayPlan, on: screen)
         objectWillChange.send()
+    }
+
+    func performNotchTrayAction(for trayItem: NotchTrayItem, action: ScriptItemAction) -> Bool {
+        guard let plugin = plugins.first(where: { $0.namespace == trayItem.id }),
+              let token = deliveryTokens[plugin.id],
+              token.isCurrent
+        else { return false }
+        return ActionDispatcher.perform(action)
     }
 
     private func recomputeNotchTrayPlan() {
