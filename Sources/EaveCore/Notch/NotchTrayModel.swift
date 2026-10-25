@@ -4,11 +4,13 @@ public struct NotchTrayItem: Equatable, Sendable {
     public let id: String
     public let title: String
     public let width: CGFloat
+    public let scriptItem: ScriptItem
 
-    public init(id: String, title: String, width: CGFloat) {
+    public init(id: String, title: String, width: CGFloat, scriptItem: ScriptItem) {
         self.id = id
         self.title = title
         self.width = width
+        self.scriptItem = scriptItem
     }
 }
 
