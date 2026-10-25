@@ -80,7 +80,7 @@ public struct ScriptRunner: Sendable {
         process.standardOutput = outHandle
         process.standardError = errHandle
 
-        try process.run()
+        try start(process)
 
         var generatedBytesExceeded = false
         let waitResult = waitForExit(
@@ -183,6 +183,29 @@ public struct ScriptRunner: Sendable {
         if !process.isRunning {
             process.waitUntilExit()
         }
+    }
+
+
+    /// Starts the child, retrying a failed spawn a few times.
+    ///
+    /// `posix_spawn` returns EAGAIN or EMFILE when a machine is asked to start
+    /// many processes at once. That is a scheduling hiccup, not a broken script,
+    /// and dropping the run would make the app forget a plugin for a whole
+    /// interval. Three attempts with a short pause is enough to ride it out.
+    private func start(_ process: Process) throws {
+        var lastError: Error?
+        for attempt in 1...3 {
+            do {
+                try process.run()
+                return
+            } catch {
+                lastError = error
+                if attempt < 3 {
+                    Thread.sleep(forTimeInterval: 0.02)
+                }
+            }
+        }
+        if let lastError { throw lastError }
     }
 
     private static func removeTemporaryRunDirectory(_ url: URL) {
