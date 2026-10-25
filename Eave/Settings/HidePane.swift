@@ -85,7 +85,11 @@ final class HidePane: SettingsPane {
         guard let appState else { return }
         toggle.state = appState.isHideSectionCollapsed ? .on : .off
         let access = appState.permissionStore.granted[.accessibility] == true
-        status.stringValue = appState.hideStatus
+        if let warning = appState.preferencesPersistenceWarning {
+            status.stringValue = appState.hideStatus + "\n" + warning
+        } else {
+            status.stringValue = appState.hideStatus
+        }
         permissionStatus.stringValue = access ? "Accessibility access is granted." : "Accessibility access is not granted."
     }
 

@@ -55,7 +55,14 @@ final class TouchBarPane: SettingsPane {
     private func refresh() {
         guard let appState else { return }
         toggle.state = appState.isTouchBarEnabled ? .on : .off
-        status.stringValue = appState.isTouchBarEnabled ? "Enabled for the Eave Settings window. Requires Touch Bar hardware." : "Disabled for the Eave Settings window."
+        let base = appState.isTouchBarEnabled
+            ? "Enabled for the Eave Settings window. Requires Touch Bar hardware."
+            : "Disabled for the Eave Settings window."
+        if let warning = appState.preferencesPersistenceWarning {
+            status.stringValue = base + "\n" + warning
+        } else {
+            status.stringValue = base
+        }
     }
 
     @objc private func toggleTouchBar() {

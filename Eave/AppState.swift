@@ -7,6 +7,7 @@ import EaveKit
 final class AppState: ObservableObject {
     let menuBarRenderer = MenuBarRenderer()
     let permissionStore = PermissionStore()
+    private let preferencesStore: PreferencesStore
     private(set) var plugins: [Plugin] = []
     private(set) var scanError: String?
     private(set) var hideStatus = "Menu bar section is expanded."
@@ -40,6 +41,8 @@ final class AppState: ObservableObject {
     private let touchBarPresenter = TouchBarPresenter()
     private var touchBarItemsByNamespace: [String: [ScriptItem]] = [:]
     private(set) var isTouchBarEnabled = true
+    private(set) var preferencesPersistenceWarning: String?
+    private var suppressPreferenceSave = false
 
     private lazy var notchPanel = NotchPanel { [weak self] in self?.objectWillChange.send() }
     private(set) var notchTrayPlan = NotchTrayModel.Plan(kept: [], overflowed: [])
@@ -55,8 +58,9 @@ final class AppState: ObservableObject {
 
     var isHideSectionCollapsed: Bool { hiddenSectionController.isCollapsed }
 
-    init(pluginsDirectory: String? = nil) {
+    init(pluginsDirectory: String? = nil, preferencesStore: PreferencesStore = PreferencesStore()) {
         self.pluginsDirectory = pluginsDirectory ?? (NSHomeDirectory() as NSString).appendingPathComponent(".eave/plugins")
+        self.preferencesStore = preferencesStore
         ensurePluginsDirectory()
         scheduler = PluginScheduler { [weak self] plugin, outcome, token in
             Task { @MainActor in
@@ -67,6 +71,14 @@ final class AppState: ObservableObject {
     }
 
     func start() {
+        suppressPreferenceSave = true
+        let preferences = preferencesStore.load()
+        setTouchBarEnabled(preferences.touchBarEnabled)
+        if preferences.hiddenSectionCollapsed {
+            toggleHiddenSection()
+        }
+        suppressPreferenceSave = false
+
         permissionStore.startPolling()
         _ = separatorEngine
         separatorEngine.startObserving()
@@ -117,6 +129,7 @@ final class AppState: ObservableObject {
         case .moveFailed(let id):
             hideStatus = "Could not move \(id). The section may be partly moved."
         }
+        persistPreferences()
         objectWillChange.send()
     }
 
@@ -128,7 +141,23 @@ final class AppState: ObservableObject {
         } else {
             touchBarPresenter.clearIfNeeded()
         }
+        persistPreferences()
         objectWillChange.send()
+    }
+
+    private func persistPreferences() {
+        guard !suppressPreferenceSave else { return }
+        let preferences = AppPreferences(
+            schemaVersion: AppPreferences.currentSchemaVersion,
+            hiddenSectionCollapsed: isHideSectionCollapsed,
+            touchBarEnabled: isTouchBarEnabled
+        )
+        if preferencesStore.save(preferences) {
+            preferencesPersistenceWarning = nil
+        } else {
+            preferencesPersistenceWarning =
+                "This choice is active now but may not survive a restart."
+        }
     }
 
     func toggleNotchTray() {
