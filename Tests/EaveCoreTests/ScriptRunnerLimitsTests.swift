@@ -86,7 +86,13 @@ struct ScriptRunnerLimitsTests {
 
     @Test func stderrFloodIsBoundedAndNonBlocking() throws {
         let path = try makeScript(
-            "i=0; while [ $i -lt 40 ]; do printf '%04096s' '' | tr ' ' e 1>&2; i=$((i+1)); done"
+            """
+            i=0
+            while [ $i -lt 80 ]; do
+              echo "$(printf '%04096s' '' | tr ' ' e)" >&2
+              i=$((i+1))
+            done
+            """
         )
         let cap = 32 << 10
         let runner = ScriptRunner(timeout: 2, limits: limits(returned: cap, generated: cap))
