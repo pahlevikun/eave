@@ -24,6 +24,14 @@ public struct ScriptItem: Equatable, Identifiable, Sendable {
     }
 }
 
+public extension ScriptItem {
+    /// The colour the plugin asked for, or nil when it asked for nothing usable.
+    var color: ScriptColor? {
+        guard let raw = parameters["color"] else { return nil }
+        return ScriptColor.parse(raw)
+    }
+}
+
 /// Refresh interval, parsed from a plugin's filename.
 ///
 /// xbar convention: `foo.5s.sh`, `bar.2m.sh`, `baz.1h.sh`, `qux.1d.sh`.
