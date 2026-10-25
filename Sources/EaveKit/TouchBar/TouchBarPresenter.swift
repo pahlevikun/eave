@@ -137,7 +137,7 @@ extension TouchBarPresenter: NSTouchBarDelegate {
               let href = hrefByID[id]
         else { return }
         let item = ScriptItem(title: "", namespace: "", parameters: ["href": href])
-        ActionDispatcher.perform(item.action)
+        ActionDispatcher.perform(item.action, shell: ActionDispatcher.productionShellExecutor)
     }
 }
 

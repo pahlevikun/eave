@@ -90,7 +90,7 @@ struct NotchTrayView: View {
         switch action {
         case .openURL:
             onPerform(trayItem, action)
-        case .unsupported, .none:
+        case .runShell, .unsupported, .none:
             break
         }
     }

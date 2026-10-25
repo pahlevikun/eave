@@ -18,7 +18,7 @@ public struct NotchTrayRow: View {
         switch item.action {
         case .openURL:
             return true
-        case .unsupported, .none:
+        case .runShell, .unsupported, .none:
             return false
         }
     }
