@@ -5,6 +5,23 @@ import EaveCore
 import Testing
 
 @Suite struct TitlePresentationTests {
+    @Test @MainActor func dropdownFalseClearsMenuDespiteChildren() {
+        let renderer = MenuBarRenderer()
+        renderer.apply(
+            [
+                ScriptItem(
+                    title: "Title",
+                    namespace: "demo",
+                    parameters: ["dropdown": "false"],
+                    children: [ScriptItem(title: "Child", namespace: "demo")]
+                ),
+            ],
+            for: "demo"
+        )
+        #expect(renderer.notchTrayItems().first?.title == "Title")
+        #expect(renderer.hasAttachedMenu(for: "demo") == false)
+    }
+
     @Test @MainActor func statusItemTitleStripsANSI() {
         let renderer = MenuBarRenderer()
         renderer.apply(

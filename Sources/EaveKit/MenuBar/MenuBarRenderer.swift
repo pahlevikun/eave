@@ -42,10 +42,27 @@ public final class MenuBarRenderer {
 
         rootItemsByNamespace[namespace] = first
 
-        if first.children.isEmpty {
-            statusItem.menu = nil
+        applyPresentation(first.presentation, root: first, to: statusItem)
+    }
+
+    private func applyPresentation(
+        _ presentation: ScriptItemPresentation,
+        root: ScriptItem,
+        to statusItem: NSStatusItem
+    ) {
+        if let length = presentation.length {
+            statusItem.length = CGFloat(length)
         } else {
-            statusItem.menu = MenuItemBuilder.menu(for: first)
+            statusItem.length = NSStatusItem.variableLength
+        }
+
+        let button = statusItem.button
+        if presentation.showsDropdown, !root.children.isEmpty {
+            statusItem.menu = MenuItemBuilder.menu(for: root)
+            button?.showsMenuIndicator = true
+        } else {
+            statusItem.menu = nil
+            button?.showsMenuIndicator = false
         }
     }
 
@@ -58,6 +75,10 @@ public final class MenuBarRenderer {
     }
 
     public var itemCount: Int { statusItems.count }
+
+    func hasAttachedMenu(for namespace: String) -> Bool {
+        statusItems[namespace]?.menu != nil
+    }
 
     /// Members in deterministic namespace order.
     public func sectionMembers() -> [SectionMembership] {

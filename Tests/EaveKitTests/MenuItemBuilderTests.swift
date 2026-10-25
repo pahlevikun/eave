@@ -48,6 +48,42 @@ import Testing
         #expect(menu.items[0].action == nil)
     }
 
+    @Test @MainActor func rowShortcutSetsKeyEquivalent() {
+        let root = ScriptItem(
+            title: "root",
+            namespace: "clock",
+            children: [
+                ScriptItem(
+                    title: "Reload",
+                    namespace: "clock",
+                    parameters: ["href": "https://example.com", "shortcut": "cmd+shift+r"]
+                ),
+            ]
+        )
+        let menu = MenuItemBuilder.menu(for: root)
+        let item = menu.items[0]
+        #expect(item.keyEquivalent == "r")
+        #expect(item.keyEquivalentModifierMask.contains(.command))
+        #expect(item.keyEquivalentModifierMask.contains(.shift))
+    }
+
+    @Test @MainActor func rowWithoutShortcutLeavesKeyEquivalentEmpty() {
+        let root = ScriptItem(
+            title: "root",
+            namespace: "clock",
+            children: [
+                ScriptItem(
+                    title: "Link",
+                    namespace: "clock",
+                    parameters: ["href": "https://example.com"]
+                ),
+            ]
+        )
+        let menu = MenuItemBuilder.menu(for: root)
+        #expect(menu.items[0].keyEquivalent == "")
+        #expect(menu.items[0].keyEquivalentModifierMask.isEmpty)
+    }
+
     @Test @MainActor func nestedChildProducesSubmenu() {
         let root = ScriptItem(
             title: "root",
