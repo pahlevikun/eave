@@ -38,22 +38,60 @@ public struct ScriptRunner: Sendable {
     private static let terminateGrace: TimeInterval = 0.3
     private static let postKillWait: TimeInterval = 0.3
 
+    private static let defaultEnvironment: [String: String] = [
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin",
+        "HOME": NSHomeDirectory(),
+    ]
+
     public init(timeout: TimeInterval = 5, limits: OutputLimits = .default) {
         self.timeout = timeout
         self.limits = limits
     }
-
 
     public func run(
         path: String,
         arguments: [String] = [],
         environment: [String: String]? = nil
     ) throws -> RunOutput {
-
         guard FileManager.default.isExecutableFile(atPath: path) else {
             throw RunError.notExecutable(path: path)
         }
 
+        return try runSupervised(
+            environment: environment ?? Self.defaultEnvironment,
+            currentDirectoryURL: nil
+        ) { process in
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = arguments
+        }
+    }
+
+    /// Runs `command` through `/bin/sh -c`, with `arguments` as $0..$N.
+    ///
+    /// The same output limits, timeout and supervision as `run(path:)` apply. The
+    /// command is not a plugin file, so there is no interval and no namespace.
+    public func runShell(
+        _ command: String,
+        arguments: [String] = [],
+        workingDirectory: String? = nil
+    ) throws -> RunOutput {
+        let directoryURL = workingDirectory.map {
+            URL(fileURLWithPath: $0, isDirectory: true)
+        }
+        return try runSupervised(
+            environment: Self.defaultEnvironment,
+            currentDirectoryURL: directoryURL
+        ) { process in
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ShShellInvocation.argv(command: command, arguments: arguments)
+        }
+    }
+
+    private func runSupervised(
+        environment: [String: String],
+        currentDirectoryURL: URL?,
+        configure: (Process) -> Void
+    ) throws -> RunOutput {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("eave-run-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
@@ -71,12 +109,9 @@ public struct ScriptRunner: Sendable {
         let errHandle = try FileHandle(forWritingTo: errURL)
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
-        process.environment = environment ?? [
-            "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin",
-            "HOME": NSHomeDirectory(),
-        ]
+        configure(process)
+        process.environment = environment
+        process.currentDirectoryURL = currentDirectoryURL
         process.standardOutput = outHandle
         process.standardError = errHandle
 
@@ -184,7 +219,6 @@ public struct ScriptRunner: Sendable {
             process.waitUntilExit()
         }
     }
-
 
     /// Starts the child, retrying a failed spawn a few times.
     ///
