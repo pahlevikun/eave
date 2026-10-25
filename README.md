@@ -4,6 +4,8 @@
 
 # <img src="assets/icon.svg" alt="" width="28" height="28" align="top" /> Eave
 
+MIT licensed. See [LICENSE](LICENSE).
+
 Eave is a native macOS menu bar app for local scripts. It reads executable scripts from `~/.eave/plugins`, runs them on their filename interval and displays their output. Settings exposes script status and diagnostics, menu bar hiding, an overflow list for items that did not fit, and a Settings-scoped Touch Bar presenter.
 
 Requires macOS 14 or later and Swift 6. The application uses AppKit and has no external package dependencies.
@@ -55,4 +57,4 @@ Make the file executable with `chmod +x`. Only install scripts you trust; script
 
 ## License
 
-No license has been selected in this repository.
+[MIT](LICENSE).
