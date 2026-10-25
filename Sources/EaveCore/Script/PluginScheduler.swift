@@ -9,6 +9,8 @@ public enum PluginFailure: Equatable, Sendable {
     case timedOut(seconds: Double)
     /// The plugin ran but exited non-zero. Its stderr is the reason.
     case exitedNonZero(code: Int32, stderr: String)
+    /// Output kept growing after repeated truncation at the generated cap.
+    case generatedTooMuch(bytes: Int)
 }
 
 /// What one run yielded.
@@ -30,6 +32,8 @@ public struct PluginDiagnostics: Equatable, Sendable {
     public var stderr: String
     /// Stdout or stderr exceeded the runner’s returned-output byte cap.
     public var outputTruncated: Bool
+    /// The child wrote past the generated cap while it was still running.
+    public var generatedBytesExceeded: Bool
     /// Set when the last run failed, so settings text can name the reason.
     public var failure: PluginFailure?
 
@@ -42,12 +46,14 @@ public struct PluginDiagnostics: Equatable, Sendable {
         exitCode: Int32?,
         stderr: String,
         outputTruncated: Bool,
+        generatedBytesExceeded: Bool = false,
         failure: PluginFailure? = nil
     ) {
         self.finishedAt = finishedAt
         self.exitCode = exitCode
         self.stderr = String(stderr.prefix(Self.stderrLimit))
         self.outputTruncated = outputTruncated
+        self.generatedBytesExceeded = generatedBytesExceeded
         self.failure = failure
     }
 }
@@ -181,7 +187,9 @@ public actor PluginScheduler {
         }()
         diagnostics[plugin.id] = PluginDiagnostics(
             finishedAt: finishedAt, exitCode: run.exitCode, stderr: run.stderr,
-            outputTruncated: run.truncated, failure: failure
+            outputTruncated: run.returnedBytesTruncated,
+            generatedBytesExceeded: run.generatedBytesExceeded,
+            failure: failure
         )
         deliver(plugin, run.outcome, ticket.token)
     }
@@ -191,7 +199,8 @@ public actor PluginScheduler {
         var outcome: PluginOutcome
         var exitCode: Int32?
         var stderr: String
-        var truncated: Bool
+        var returnedBytesTruncated: Bool
+        var generatedBytesExceeded: Bool
     }
 
     /// Maps one run to an outcome.
@@ -206,35 +215,48 @@ public actor PluginScheduler {
                     outcome: .failed(.exitedNonZero(code: output.exitCode, stderr: output.stderr)),
                     exitCode: output.exitCode,
                     stderr: output.stderr,
-                    truncated: output.truncated
+                    returnedBytesTruncated: output.returnedBytesTruncated,
+                    generatedBytesExceeded: output.generatedBytesExceeded
                 )
             }
             return Run(
                 outcome: .items(ScriptOutput.parse(output.stdout, namespace: plugin.namespace)),
                 exitCode: output.exitCode,
                 stderr: output.stderr,
-                truncated: output.truncated
+                returnedBytesTruncated: output.returnedBytesTruncated,
+                generatedBytesExceeded: output.generatedBytesExceeded
             )
         } catch ScriptRunner.RunError.notExecutable(let path) {
             return Run(
                 outcome: .failed(.notExecutable(path: path)),
                 exitCode: nil,
                 stderr: "",
-                truncated: false
+                returnedBytesTruncated: false,
+                generatedBytesExceeded: false
             )
         } catch ScriptRunner.RunError.timedOut(let seconds) {
             return Run(
                 outcome: .failed(.timedOut(seconds: seconds)),
                 exitCode: nil,
                 stderr: "",
-                truncated: false
+                returnedBytesTruncated: false,
+                generatedBytesExceeded: false
+            )
+        } catch ScriptRunner.RunError.generatedTooMuch(let bytes) {
+            return Run(
+                outcome: .failed(.generatedTooMuch(bytes: bytes)),
+                exitCode: nil,
+                stderr: "",
+                returnedBytesTruncated: false,
+                generatedBytesExceeded: true
             )
         } catch {
             return Run(
                 outcome: .failed(.notExecutable(path: plugin.path)),
                 exitCode: nil,
                 stderr: "\(error)",
-                truncated: false
+                returnedBytesTruncated: false,
+                generatedBytesExceeded: false
             )
         }
     }

@@ -20,7 +20,7 @@ struct ScriptRunnerTests {
         let out = try ScriptRunner().run(path: path)
         #expect(out.stdout == "hello\n")
         #expect(out.exitCode == 0)
-        #expect(out.truncated == false)
+        #expect(out.returnedBytesTruncated == false)
     }
 
     @Test func capturesExitCode() throws {
@@ -47,8 +47,8 @@ struct ScriptRunnerTests {
     @Test func truncatesHugeOutput() throws {
         let path = try makeScript("head -c 2000000 /dev/zero | tr '\\0' a")
         let out = try ScriptRunner(timeout: 5).run(path: path)
-        #expect(out.truncated)
-        #expect(out.stdout.utf8.count == ScriptRunner.outputLimit)
+        #expect(out.returnedBytesTruncated)
+        #expect(out.stdout.utf8.count == OutputLimits.default.returnedBytes)
     }
 
     @Test func passesEnvironment() throws {
