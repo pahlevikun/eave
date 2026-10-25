@@ -102,8 +102,8 @@ struct NotchTrayActionTests {
             isARepeat: false,
             keyCode: 53
         )
-        try #require(event)
-        NSApp.postEvent(event, atStart: false)
+        let keyEvent = try #require(event)
+        NSApp.postEvent(keyEvent, atStart: false)
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         #expect(didClose)
         #expect(notch.isOpen == false)
