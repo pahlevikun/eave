@@ -93,7 +93,8 @@ public final class TouchBarPresenter: NSObject, NSTouchBarProvider {
         var hrefs: [String: String] = [:]
         for item in items {
             let isSpacer = item.parameters["spacer"] == "true" || item.title == "|"
-            let entry = TouchBarEntry(id: item.id, title: item.title, isSpacer: isSpacer)
+            let title = AnsiText.stripAndFirstLine(item.title)
+            let entry = TouchBarEntry(id: item.id, title: title, isSpacer: isSpacer)
             result.append(entry)
             if let href = item.parameters["href"] {
                 hrefs[entry.id] = href

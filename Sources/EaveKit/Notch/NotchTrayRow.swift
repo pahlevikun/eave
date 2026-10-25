@@ -23,16 +23,23 @@ public struct NotchTrayRow: View {
         }
     }
 
+    private var rowTitleColor: Color {
+        if let itemColor = item.color {
+            return Color(nsColor: ScriptColorKit.nsColor(for: itemColor))
+        }
+        return isActionable ? Color(nsColor: .labelColor) : Color(nsColor: .secondaryLabelColor)
+    }
+
     public var body: some View {
         Button {
             guard isActionable else { return }
             perform(item.action)
         } label: {
-            Text(item.title)
+            Text(AnsiText.strip(item.title))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(isActionable ? Color(nsColor: .labelColor) : Color(nsColor: .secondaryLabelColor))
+                .foregroundStyle(rowTitleColor)
         }
         .buttonStyle(NotchTrayRowButtonStyle(isSelected: isSelected))
         .disabled(!isActionable)

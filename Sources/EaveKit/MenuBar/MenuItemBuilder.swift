@@ -14,7 +14,9 @@ public enum MenuItemBuilder {
     }
 
     private static func menuItem(for item: ScriptItem) -> NSMenuItem {
-        let entry = NSMenuItem(title: item.title, action: nil, keyEquivalent: "")
+        let displayTitle = AnsiText.strip(item.title)
+        let entry = NSMenuItem(title: displayTitle, action: nil, keyEquivalent: "")
+        entry.applyRowTitle(displayTitle, color: item.color)
         entry.representedObject = item
 
         if item.children.isEmpty {
