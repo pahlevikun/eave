@@ -4,8 +4,15 @@ import AppKit
 import EaveCore
 import Testing
 
+/// A real status item needs a window server, and a plain swift-testing run has
+/// none. Same opt-in as the application tests.
+private let guiTestsEnabled =
+    ProcessInfo.processInfo.environment["EAVE_NATIVE_UI_TESTS"] == "1"
+
 @Suite struct TitlePresentationTests {
-    @Test @MainActor func dropdownFalseClearsMenuDespiteChildren() {
+    @Test(.enabled(if: guiTestsEnabled, "Requires a GUI test host for a real status item."))
+    @MainActor
+    func dropdownFalseClearsMenuDespiteChildren() {
         let renderer = MenuBarRenderer()
         renderer.apply(
             [
@@ -22,7 +29,9 @@ import Testing
         #expect(renderer.hasAttachedMenu(for: "demo") == false)
     }
 
-    @Test @MainActor func statusItemTitleStripsANSI() {
+    @Test(.enabled(if: guiTestsEnabled, "Requires a GUI test host for a real status item."))
+    @MainActor
+    func statusItemTitleStripsANSI() {
         let renderer = MenuBarRenderer()
         renderer.apply(
             [ScriptItem(title: "\u{1B}[31m14:22\u{1B}[0m", namespace: "clock")],
@@ -51,7 +60,9 @@ import Testing
         #expect(plain.attributedTitle?.length == 0)
     }
 
-    @Test @MainActor func statusButtonUsesPlainTitleWithoutColour() {
+    @Test(.enabled(if: guiTestsEnabled, "Requires a GUI test host for a real status item."))
+    @MainActor
+    func statusButtonUsesPlainTitleWithoutColour() {
         let button = NSButton()
         button.applyMenuBarTitle("steady", color: nil)
         #expect(button.title == "steady")
