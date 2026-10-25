@@ -146,8 +146,12 @@ struct ScriptRunnerLimitsTests {
             Issue.record("Could not read background child pid")
             return
         }
-        #expect(kill(pid, 0) == -1)
-        #expect(errno == ESRCH)
+        // Capture errno before any macro expands, because a libc call in
+        // between overwrites it and turns a real check into a coin flip.
+        let probe = kill(pid, 0)
+        let probeErrno = errno
+        #expect(probe == -1)
+        #expect(probeErrno == ESRCH)
     }
 
     @Test func tempDirectoryRemovedOnSuccessTimeoutAndRefusal() throws {

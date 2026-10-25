@@ -43,15 +43,12 @@ public struct ScriptRunner: Sendable {
         self.limits = limits
     }
 
-    private static let runLock = NSLock()
 
     public func run(
         path: String,
         arguments: [String] = [],
         environment: [String: String]? = nil
     ) throws -> RunOutput {
-        Self.runLock.lock()
-        defer { Self.runLock.unlock() }
 
         guard FileManager.default.isExecutableFile(atPath: path) else {
             throw RunError.notExecutable(path: path)
@@ -86,14 +83,12 @@ public struct ScriptRunner: Sendable {
         try process.run()
 
         var generatedBytesExceeded = false
-        var consecutiveTruncations = 0
         let waitResult = waitForExit(
             process,
             stdoutURL: outURL,
             stderrURL: errURL,
             upTo: timeout,
-            generatedBytesExceeded: &generatedBytesExceeded,
-            consecutiveTruncations: &consecutiveTruncations
+            generatedBytesExceeded: &generatedBytesExceeded
         )
 
         if waitResult == .generatedTooMuch {
@@ -145,20 +140,19 @@ public struct ScriptRunner: Sendable {
         stdoutURL: URL,
         stderrURL: URL,
         upTo seconds: TimeInterval,
-        generatedBytesExceeded: inout Bool,
-        consecutiveTruncations: inout Int
+        generatedBytesExceeded: inout Bool
     ) -> WaitResult {
         let deadline = Date().addingTimeInterval(seconds)
         while process.isRunning, Date() < deadline {
-            if OutputFileMonitor.enforceGeneratedCap(
+            let enforced = OutputFileMonitor.enforceGeneratedCap(
                 stdoutURL: stdoutURL,
                 stderrURL: stderrURL,
-                generatedBytes: limits.generatedBytes,
-                consecutiveTruncations: &consecutiveTruncations
-            ) {
+                generatedBytes: limits.generatedBytes
+            )
+            if enforced.truncated {
                 generatedBytesExceeded = true
             }
-            if consecutiveTruncations >= 3 {
+            if enforced.runaway {
                 return .generatedTooMuch
             }
             Thread.sleep(forTimeInterval: Self.pollInterval)
