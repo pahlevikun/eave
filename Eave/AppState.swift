@@ -206,6 +206,10 @@ final class AppState: ObservableObject {
         await scheduler.isRunning(plugin)
     }
 
+    func runNow(pluginID: String) async -> RunRequestResult {
+        await scheduler.requestRun(pluginID: pluginID)
+    }
+
     func attachTouchBar(to window: NSWindow) {
         touchBarPresenter.attach(to: window)
     }
