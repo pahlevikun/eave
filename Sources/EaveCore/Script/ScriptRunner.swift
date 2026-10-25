@@ -43,11 +43,16 @@ public struct ScriptRunner: Sendable {
         self.limits = limits
     }
 
+    private static let runLock = NSLock()
+
     public func run(
         path: String,
         arguments: [String] = [],
         environment: [String: String]? = nil
     ) throws -> RunOutput {
+        Self.runLock.lock()
+        defer { Self.runLock.unlock() }
+
         guard FileManager.default.isExecutableFile(atPath: path) else {
             throw RunError.notExecutable(path: path)
         }
@@ -103,6 +108,12 @@ public struct ScriptRunner: Sendable {
         }
         try? outHandle.close()
         try? errHandle.close()
+
+        if OutputFileMonitor.fileSize(at: outURL) > limits.generatedBytes
+            || OutputFileMonitor.fileSize(at: errURL) > limits.generatedBytes
+        {
+            generatedBytesExceeded = true
+        }
 
         let stdoutData = readCapped(at: outURL)
         let stderrData = readCapped(at: errURL)
