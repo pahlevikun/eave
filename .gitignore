@@ -1,6 +1,5 @@
 .build/
 .DS_Store
 *.xcodeproj/xcuserdata/
-docs/plans/
 handoffs/
 .cursor-brief-*.md

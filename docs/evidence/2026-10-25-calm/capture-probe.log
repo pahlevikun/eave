@@ -1,0 +1,9 @@
+Observed stdout/stderr from capture-probe on 2026-10-25. No image was created.
+
+2026-10-25 07:14:56.571 capture-probe[37675:2851778] Failure on line 688 in function id scheduleApplicationNotification(LSNotificationCode, NSWorkspaceNotificationCenter *): noErr == _LSModifyNotification(notificationID, 1, &code, 0, NULL, NULL, NULL)
+2026-10-25 07:14:57.252 capture-probe[37675:2851778] Error received in message reply handler: Connection invalid
+2026-10-25 07:14:57.252 capture-probe[37675:2851789] Connection Invalid error for service com.apple.hiservices-xpcservice.
+sandbox_extension_issue_file failed for /usr/sbin: 1 (Operation not permitted)
+could not create image from window
+fixture-window-id=0 visible=true key=false capture-preflight=false
+window-capture-exit=1

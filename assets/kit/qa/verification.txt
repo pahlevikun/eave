@@ -1,0 +1,18 @@
+validate_kit: OK
+{
+  "findings": [],
+  "ok": true
+}
+All 20 assets SVG files parsed as XML.
+All 59 PNG files have valid PNG headers and positive dimensions.
+Four social SVGs are self-contained with inline artwork; PNGs re-rendered after correction.
+Static versus animated static-render fallback icon.png: AE=5 (4.76837e-06).
+Static versus animated static-render fallback banner.png: AE=2 (2.16054e-06).
+Every iOS PNG is opaque.
+All five Android adaptive foregrounds have expected layer sizes, transparency, and no background plate.
+Preview HTML local src/href targets resolve.
+Eave.icns: complete PNG-backed ICNS container, 11 image chunks, validated header/length and sips recognition at 1024×1024.
+status-mark.pdf: pdfinfo confirms 18×18pt, one page.
+Final README integration: check_readme_embed OK.
+Final unused-animation CSS cleanup: static fallback pixel comparison AE=0 for icon and banner at matching 2x size.
+Chromium animation time, settled geometry and reduced-motion final state: passed; see browser-motion.json.

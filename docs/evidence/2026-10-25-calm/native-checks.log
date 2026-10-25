@@ -1,0 +1,114 @@
+2026-10-25 07:17:03.284 native-checks[40862:2860814] Failure on line 688 in function id scheduleApplicationNotification(LSNotificationCode, NSWorkspaceNotificationCenter *): noErr == _LSModifyNotification(notificationID, 1, &code, 0, NULL, NULL, NULL)
+2026-10-25 07:17:04.087 native-checks[40862:2860847] Connection Invalid error for service com.apple.hiservices-xpcservice.
+2026-10-25 07:17:04.087 native-checks[40862:2860814] Error received in message reply handler: Connection invalid
+PASS light 680x480 four real native tabs
+PASS light 680x480 explicit effective appearance
+GEOMETRY light 680x480 content=(0.0, 0.0, 680.0, 480.0) scripts-pane=(0.0, 0.0, 674.0, 450.0)
+PASS light 680x480 first-run table and diagnostics collapse
+PASS light 680x480 folder action has in-bounds layout
+PASS light 680x480 first-script instruction available in pane
+PASS light 680x480 populated scripts table
+PASS light 680x480 named last-run diagnostics
+PASS light 680x480 explicit failure/truncation text
+PASS light 680x480 diagnostics scroll viewport inside pane
+PASS light 680x480 table viewport inside pane
+PASS light 680x480 table retains usable row viewport
+PASS light 680x480 unchanged refresh preserves selected script, diagnostic selection and scroll
+PASS light 680x480 recovery actions have in-bounds layout
+PASS light 680x480 native Retry scan action retained
+PASS light 680x480 full 60-rejection text available
+PASS light 680x480 scan detail action focuses named selectable text
+PASS light 680x480 scan detail action retains script selection
+PASS light 680x480 recovery refresh preserves text selection and scroll
+PASS light 680x480 last-run details return after native toggle
+PASS light 680x480 empty-folder recovery automatically exposes complete error
+PASS light 680x480 empty recovery viewport and Retry remain in bounds
+PASS light 680x480 successful empty refresh clears recovery
+PASS light 680x480 native tab action selects Menu Bar
+PASS light 680x480 native tab action selects Overflow
+PASS light 680x480 native tab action selects Touch Bar
+PASS light 600x420 four real native tabs
+PASS light 600x420 explicit effective appearance
+GEOMETRY light 600x420 content=(0.0, 0.0, 600.0, 420.0) scripts-pane=(0.0, 0.0, 594.0, 390.0)
+PASS light 600x420 first-run table and diagnostics collapse
+PASS light 600x420 folder action has in-bounds layout
+PASS light 600x420 first-script instruction available in pane
+PASS light 600x420 populated scripts table
+PASS light 600x420 named last-run diagnostics
+PASS light 600x420 explicit failure/truncation text
+PASS light 600x420 diagnostics scroll viewport inside pane
+PASS light 600x420 table viewport inside pane
+PASS light 600x420 table retains usable row viewport
+PASS light 600x420 unchanged refresh preserves selected script, diagnostic selection and scroll
+PASS light 600x420 recovery actions have in-bounds layout
+PASS light 600x420 native Retry scan action retained
+PASS light 600x420 full 60-rejection text available
+PASS light 600x420 scan detail action focuses named selectable text
+PASS light 600x420 scan detail action retains script selection
+PASS light 600x420 recovery refresh preserves text selection and scroll
+PASS light 600x420 last-run details return after native toggle
+PASS light 600x420 empty-folder recovery automatically exposes complete error
+PASS light 600x420 empty recovery viewport and Retry remain in bounds
+PASS light 600x420 successful empty refresh clears recovery
+PASS light 600x420 native tab action selects Menu Bar
+PASS light 600x420 native tab action selects Overflow
+PASS light 600x420 native tab action selects Touch Bar
+PASS dark 680x480 four real native tabs
+PASS dark 680x480 explicit effective appearance
+GEOMETRY dark 680x480 content=(0.0, 0.0, 680.0, 480.0) scripts-pane=(0.0, 0.0, 674.0, 450.0)
+PASS dark 680x480 first-run table and diagnostics collapse
+PASS dark 680x480 folder action has in-bounds layout
+PASS dark 680x480 first-script instruction available in pane
+PASS dark 680x480 populated scripts table
+PASS dark 680x480 named last-run diagnostics
+PASS dark 680x480 explicit failure/truncation text
+PASS dark 680x480 diagnostics scroll viewport inside pane
+PASS dark 680x480 table viewport inside pane
+PASS dark 680x480 table retains usable row viewport
+PASS dark 680x480 unchanged refresh preserves selected script, diagnostic selection and scroll
+PASS dark 680x480 recovery actions have in-bounds layout
+PASS dark 680x480 native Retry scan action retained
+PASS dark 680x480 full 60-rejection text available
+PASS dark 680x480 scan detail action focuses named selectable text
+PASS dark 680x480 scan detail action retains script selection
+PASS dark 680x480 recovery refresh preserves text selection and scroll
+PASS dark 680x480 last-run details return after native toggle
+PASS dark 680x480 empty-folder recovery automatically exposes complete error
+PASS dark 680x480 empty recovery viewport and Retry remain in bounds
+PASS dark 680x480 successful empty refresh clears recovery
+PASS dark 680x480 native tab action selects Menu Bar
+PASS dark 680x480 native tab action selects Overflow
+PASS dark 680x480 native tab action selects Touch Bar
+PASS dark 600x420 four real native tabs
+PASS dark 600x420 explicit effective appearance
+GEOMETRY dark 600x420 content=(0.0, 0.0, 600.0, 420.0) scripts-pane=(0.0, 0.0, 594.0, 390.0)
+PASS dark 600x420 first-run table and diagnostics collapse
+PASS dark 600x420 folder action has in-bounds layout
+PASS dark 600x420 first-script instruction available in pane
+PASS dark 600x420 populated scripts table
+PASS dark 600x420 named last-run diagnostics
+PASS dark 600x420 explicit failure/truncation text
+PASS dark 600x420 diagnostics scroll viewport inside pane
+PASS dark 600x420 table viewport inside pane
+PASS dark 600x420 table retains usable row viewport
+PASS dark 600x420 unchanged refresh preserves selected script, diagnostic selection and scroll
+PASS dark 600x420 recovery actions have in-bounds layout
+PASS dark 600x420 native Retry scan action retained
+PASS dark 600x420 full 60-rejection text available
+PASS dark 600x420 scan detail action focuses named selectable text
+PASS dark 600x420 scan detail action retains script selection
+PASS dark 600x420 recovery refresh preserves text selection and scroll
+PASS dark 600x420 last-run details return after native toggle
+PASS dark 600x420 empty-folder recovery automatically exposes complete error
+PASS dark 600x420 empty recovery viewport and Retry remain in bounds
+PASS dark 600x420 successful empty refresh clears recovery
+PASS dark 600x420 native tab action selects Menu Bar
+PASS dark 600x420 native tab action selects Overflow
+PASS dark 600x420 native tab action selects Touch Bar
+MATRIX-SUMMARY checks=100 failures=0
+MOTION animated immediate alpha=0.0 window=0
+MOTION animated 160ms alpha=1.0 visible=true
+MOTION animated 350ms alpha=1.0 visible=true
+PASS animated opening reaches final opacity in NSApplication.run
+PASS Reduce Motion opening reaches final opacity immediately
+FINAL checks=102 failures=0

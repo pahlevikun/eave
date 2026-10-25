@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>Platform shape preview</title>
+<style>
+body{font-family:system-ui;background:#171815;color:#f4f1e9;padding:24px}
+.grid{display:flex;gap:28px;flex-wrap:wrap;margin-top:20px}
+.tile{width:168px;height:168px;background:url('android/mipmap-xxxhdpi/ic_launcher.png') center/cover}
+.circle{border-radius:50%}
+.squircle{border-radius:38%}
+.rounded{border-radius:24%}
+.cap{font-size:12px;color:#b9b8ad;margin-top:10px;text-align:center}
+</style></head><body>
+<h1>Launcher under OEM masks</h1>
+<p>Same <code>ic_launcher</code> composite as circle, squircle, and rounded square.</p>
+<div class="grid">
+  <div><div class="tile circle"></div><p class="cap">Circle</p></div>
+  <div><div class="tile squircle"></div><p class="cap">Squircle</p></div>
+  <div><div class="tile rounded"></div><p class="cap">Rounded square</p></div>
+</div>
+</body></html>

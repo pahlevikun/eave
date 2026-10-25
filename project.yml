@@ -12,6 +12,10 @@ targets:
     platform: macOS
     sources:
       - path: Eave
+      - path: assets/Eave.icns
+        buildPhase: resources
+      - path: assets/status-mark.pdf
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.eave.app
@@ -21,6 +25,7 @@ targets:
       properties:
         LSUIElement: true
         CFBundleName: Eave
+        CFBundleIconFile: Eave
         CFBundleShortVersionString: "0.1"
         CFBundleVersion: "1"
     dependencies:

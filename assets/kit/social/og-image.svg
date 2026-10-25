@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+<rect width="100%" height="100%" fill="#171815"/>
+<g transform="translate(40 147) scale(0.65625)"><rect width="512" height="512" fill="#171815"/><path fill="none" class="draw roof" d="M132 190 L256 126 L380 190 H164 V346 H348" stroke="#f0b45b" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/><path fill="none" class="draw cross" d="M164 268 H300" stroke="#f0b45b" stroke-width="30" stroke-linecap="round"/></g>
+<text x="416" y="307" fill="#f4f1e9" font-family="Arial, Helvetica, sans-serif" font-size="68" font-weight="600">Eave</text>
+<text x="416" y="369" fill="#b9b8ad" font-family="Arial, Helvetica, sans-serif" font-size="25">Scripts in your menu bar.</text>
+</svg>

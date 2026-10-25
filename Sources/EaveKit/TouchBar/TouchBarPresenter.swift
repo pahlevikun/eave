@@ -62,6 +62,13 @@ public final class TouchBarPresenter: NSObject, NSTouchBarProvider {
     }
 
     private func apply(_ entries: [TouchBarEntry]) {
+        for entry in entries {
+            let identifier = NSTouchBarItem.Identifier(entry.id)
+            if let item = touchBar?.item(forIdentifier: identifier) as? NSCustomTouchBarItem,
+               let button = item.view as? NSButton {
+                button.isEnabled = hrefByID[entry.id] != nil
+            }
+        }
         guard entries != lastEntries else { return }
         lastEntries = entries
         refreshBar()

@@ -57,6 +57,8 @@ public struct RefreshInterval: Equatable, Sendable {
         case "d": multiplier = 86_400
         default: return nil
         }
-        return RefreshInterval(seconds: value * multiplier)
+        let (seconds, overflow) = value.multipliedReportingOverflow(by: multiplier)
+        guard !overflow else { return nil }
+        return RefreshInterval(seconds: seconds)
     }
 }

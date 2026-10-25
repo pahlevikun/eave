@@ -1,0 +1,10 @@
+<svg font-family="Arial, Helvetica, sans-serif" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 708 340">
+<rect width="100%" height="100%" fill="#171815"/>
+<text x="24" y="32" fill="#f4f1e9" font-family="system-ui" font-size="16" font-weight="600">Concept sheet</text>
+<svg x="24" y="52" width="180" height="180" viewBox="0.0 0.0 512.0 512.0" overflow="hidden"><title>Eave cut</title><desc>Original black-first direction study.</desc><rect width="512" height="512" fill="#ffffff"/><path fill="none" class="draw roof" d="M132 190 L256 126 L380 190 H164 V346 H348" stroke="#171717" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/><path fill="none" class="draw cross" d="M164 268 H300" stroke="#171717" stroke-width="30" stroke-linecap="round"/></svg>
+<text x="24" y="248" fill="#f4f1e9" font-size="11" font-weight="600">Eave cut ★ recommended</text>
+<svg x="244" y="52" width="180" height="180" viewBox="0.0 0.0 512.0 512.0" overflow="hidden"><title>Signal lintel</title><desc>Original black-first direction study.</desc><rect width="512" height="512" fill="#ffffff"/><path fill="none" d="M126 166 H386 M178 166 V338 H334" stroke="#171717" stroke-width="30" stroke-linecap="round"/><circle cx="278" cy="250" r="25" fill="#171717"/></svg>
+<text x="244" y="248" fill="#f4f1e9" font-size="11" font-weight="600">Signal lintel</text>
+<svg x="464" y="52" width="180" height="180" viewBox="0.0 0.0 512.0 512.0" overflow="hidden"><title>Open bracket</title><desc>Original black-first direction study.</desc><rect width="512" height="512" fill="#ffffff"/><path fill="none" d="M346 144 H164 V368 H346 M164 256 H290" stroke="#171717" stroke-width="32" stroke-linejoin="round" stroke-linecap="round"/></svg>
+<text x="464" y="248" fill="#f4f1e9" font-size="11" font-weight="600">Open bracket</text>
+</svg>

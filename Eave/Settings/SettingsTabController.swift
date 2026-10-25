@@ -1,7 +1,8 @@
 import AppKit
 
 @MainActor
-final class SettingsTabController: NSView {
+final class SettingsTabController: NSView, NSTabViewDelegate {
+    private var presented = false
     private let tabView = NSTabView()
     private let scriptsPane = ScriptsPane()
     private let hidePane = HidePane()
@@ -10,6 +11,7 @@ final class SettingsTabController: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        tabView.delegate = self
         tabView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(tabView)
 
@@ -21,8 +23,8 @@ final class SettingsTabController: NSView {
         ])
 
         tabView.addTabViewItem(makeTab(label: "Scripts", view: scriptsPane))
-        tabView.addTabViewItem(makeTab(label: "Hide", view: hidePane))
-        tabView.addTabViewItem(makeTab(label: "Notch", view: notchPane))
+        tabView.addTabViewItem(makeTab(label: "Menu Bar", view: hidePane))
+        tabView.addTabViewItem(makeTab(label: "Overflow", view: notchPane))
         tabView.addTabViewItem(makeTab(label: "Touch Bar", view: touchBarPane))
     }
 
@@ -36,6 +38,15 @@ final class SettingsTabController: NSView {
         hidePane.bind(appState: appState)
         notchPane.bind(appState: appState)
         touchBarPane.bind(appState: appState)
+    }
+
+    func setPresented(_ presented: Bool) {
+        self.presented = presented
+        scriptsPane.setActive(presented && tabView.selectedTabViewItem?.view === scriptsPane)
+    }
+
+    func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
+        scriptsPane.setActive(presented && tabViewItem?.view === scriptsPane)
     }
 
     private func makeTab(label: String, view: NSView) -> NSTabViewItem {

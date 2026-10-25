@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "browser": "156.0.8078.4",
+  "scope": "Original SVG identity assets in isolated Chromium; does not verify native application behavior.",
+  "results": [
+    {
+      "product": "eave",
+      "kind": "icon",
+      "status": "passed",
+      "animationNames": [
+        "draw",
+        "draw"
+      ],
+      "checks": [
+        "CSS animation advances",
+        "70% reading hold has final position/opacity/stroke",
+        "reduced motion stops animations in final state"
+      ]
+    },
+    {
+      "product": "eave",
+      "kind": "logo",
+      "status": "passed",
+      "animationNames": [
+        "draw",
+        "draw",
+        "row",
+        "rowtwo"
+      ],
+      "checks": [
+        "CSS animation advances",
+        "70% reading hold has final position/opacity/stroke",
+        "reduced motion stops animations in final state"
+      ]
+    }
+  ]
+}

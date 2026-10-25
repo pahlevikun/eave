@@ -15,15 +15,21 @@ final class PluginFolderWatcher: @unchecked Sendable {
 
     private let path: String
     private let handler: Handler
+    private let startStream: (FSEventStreamRef) -> Bool
     private var stream: FSEventStreamRef?
     /// Bumped on `queue`. A stale wakeup compares its copy and stays quiet.
     private var debounceGeneration = 0
     private let debounceInterval: TimeInterval = 0.3
     private let queue = DispatchQueue(label: "com.eave.plugin-folder-watcher")
 
-    init(path: String, handler: @escaping Handler) {
+    init(
+        path: String,
+        startStream: @escaping (FSEventStreamRef) -> Bool = { FSEventStreamStart($0) },
+        handler: @escaping Handler
+    ) {
         self.path = path
         self.handler = handler
+        self.startStream = startStream
     }
 
     @discardableResult
@@ -65,7 +71,12 @@ final class PluginFolderWatcher: @unchecked Sendable {
 
         stream = created
         FSEventStreamSetDispatchQueue(created, queue)
-        FSEventStreamStart(created)
+        guard startStream(created) else {
+            FSEventStreamInvalidate(created)
+            FSEventStreamRelease(created)
+            stream = nil
+            return false
+        }
         return true
     }
 

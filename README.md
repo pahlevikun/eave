@@ -1,112 +1,56 @@
-# Eave
+<p align="center">
+  <img src="assets/logo-animated.svg" alt="Eave, scripts in your menu bar" width="100%" />
+</p>
 
-<p align="center"><img src=".github/header.png" width="760" alt="eave"></p>
+# <img src="assets/icon.svg" alt="" width="28" height="28" align="top" /> Eave
 
-[![Build](https://github.com/pahlevikun/eave/actions/workflows/ci.yml/badge.svg)](https://github.com/pahlevikun/eave/actions/workflows/ci.yml)
+Eave is a native macOS menu bar app for local scripts. It reads executable scripts from `~/.eave/plugins`, runs them on their filename interval and displays their output. Settings exposes script status and diagnostics, menu bar hiding, an informational overflow list and a Settings-scoped Touch Bar presenter.
 
-A menu bar manager for macOS. **There is no app yet.** This repo is the library
-underneath one: plugin discovery, a script runner, two output parsers, and the
-geometry the UI will need.
+Requires macOS 14 or later and Swift 6. The application uses AppKit and has no external package dependencies.
 
-What works today: point it at a folder of xbar plugins, run them on their own
-intervals, get parsed menu items back. What does not exist: any window, any
-status item, any of the four tools described below.
+## Run from source
 
 ```sh
-swift test        # 60 tests, about 0.6 s, on macOS and Linux
-```
-
-## Build
-
-The menu bar app is not built by Swift Package Manager alone. On a Mac with
-[XcodeGen](https://github.com/yonaskolb/XcodeGen) installed:
-
-```sh
+swift test
 xcodegen generate
 open Eave.xcodeproj
 ```
 
-Build and run the `Eave` scheme from Xcode.
+Choose the Eave scheme and run the app. The menu bar icon opens Settings, Scripts Folder and other available app actions. The repository does not provide a signed release or distribution setup.
 
-## Planned tools
+## Add a script
 
-These are the plan, not the state.
+Open **Settings → Scripts → Open Scripts Folder**. Place an executable script in that folder. A filename such as `clock.5s.sh` requests a five-second interval; `weather.5m.sh` requests five minutes. Eave discovers executable non-hidden files and reports rejected registrations in Settings.
 
-**Hide.** Squeeze icons left of a separator off-screen. Two permission tiers: a
-basic tier that needs no permissions, and a full tier that needs Accessibility
-to move individual icons.
+A minimal script can print a status line and a menu link:
 
-**Script.** Run existing xbar plugins unchanged. The refresh interval comes
-from the filename (`clock.5s.sh`). MTMR's JSON output (`{"title":"..."}`) works
-too. This is the part with real code behind it.
-
-**Notch.** Notched Macs run out of menu bar space with more than a few icons.
-Eave will put the overflow in a panel below the notch instead of dumping it in
-a hidden section.
-
-**Touch Bar.** Take over the entire bar with your items, and step aside when a
-blacklisted app is in front.
-
-## Round 2 tools (in progress)
-
-**Hide** and **Notch** now have pure planning types in `EaveCore` (Linux-tested)
-and thin AppKit adapters in `EaveKit`. The macOS app wires a separator engine,
-notch panel, and Settings tabs for both. UI behaviour on macOS is not verified
-in CI.
-
-## What the library does now
-
-```
-Sources/EaveCore/
-  Model/ScriptItem.swift          items, refresh interval
-  Script/ScriptRunner.swift       run a plugin, 5 s timeout, 1 MB output cap
-  Script/XbarParser.swift         xbar line format, nested submenus
-  Script/ScriptOutput.swift       one door: JSON or text, both parsed here
-  Script/Plugin.swift             scan a folder, read interval from the name
-  Script/SchedulePlanner.swift    decide what is due, clock passed in
-  Script/PluginScheduler.swift    own the list, run what's due, report outcome
-  Geometry/SeparatorWidth.swift   the 10,000 pt clamp
-  Geometry/NotchGeometry.swift    notch size from the auxiliary areas
+```sh
+#!/bin/sh
+printf 'Ready\n---\nProject website | href=https://example.com\n'
 ```
 
-`EaveCore` holds no AppKit code, by rule. Anything that draws will live in
-`EaveKit`, which does not exist. The split keeps the part that changes most
-testable in half a second on any machine.
+Make the file executable with `chmod +x`. Only install scripts you trust; scripts run as your user. This application is not a sandbox for untrusted code.
 
-```swift
-let scan = try PluginDiscovery.scan(directory: "\(NSHomeDirectory())/.eave/plugins")
-// scan.plugins    what loaded
-// scan.rejections files refused, with a reason (duplicate names)
+## Current behavior
 
-let scheduler = PluginScheduler { plugin, outcome in
-    switch outcome {
-    case .items(let items): /* draw them */
-    case .failed(let reason): /* remove the item, keep the reason */
-    }
-}
-await scheduler.setPlugins(plugins)
-await scheduler.tick()          // call on a timer
-```
+- Script output supports the implemented xbar-style text subset and a small JSON title/image payload. It is not full xbar compatibility.
+- Menu children can open `href` links. Top-level rendering uses the first item's title and optional image.
+- Deleted registrations are removed from app presentation. Results from retired runs are rejected.
+- Basic menu bar hiding uses a separator. Accessibility enables the implemented movement path; ordinary scripts do not require it.
+- Overflow is a live informational list. It does not expose every plugin action or manage unrelated apps' icons.
+- Touch Bar presentation is attached to Eave Settings. It is not a global Touch Bar replacement.
 
-## Design notes
+`ScriptRunner` caps returned stdout/stderr and has a timeout. The cap does not bound temporary-file growth while a script runs. Runtime output bounds and descendant cleanup have a dedicated [next-development task](docs/plans/2026-10-24-polish-and-next-development.md#next-0-bound-script-output-and-child-lifetime).
 
-The plans came from reading the source of seven related projects: Ice, Thaw,
-hidden, boring.notch, MTMR, xbar, Pock. Three findings worth knowing:
+## Development references
 
-1. **`NSStatusItem.length` caps at 10,000 pt.** Inflating one item pushes the
-   rest off-screen: widest screen times two, clamped to that cap.
-2. **Menu bar items live on window layer 25.** `CGWindowListCopyWindowInfo`
-   plus that filter enumerates them without Accessibility.
-3. **Moving icons takes synthetic CGEvents.** A command-drag names the target
-   window through the private event field `0x33`, starting at `(20000, 20000)`
-   so the user's cursor never moves.
-
-One more, from writing the runner: catching stdout through a `Pipe` hangs when
-the script spawns a child, because the grandchild holds the write end. Output
-goes to a temp file and the process group gets the signal.
+- [Architecture](ARCHITECTURE.md) explains discovery, scheduling and native ownership.
+- [Design system](DESIGN.md) defines layout, theme, interaction and motion rules.
+- [Audit baseline](docs/audit-baseline.md) records reproduced issues and full-read coverage before this work.
+- [Verification](docs/verification.md) records checks and outstanding runtime acceptance.
+- [Development plan](docs/plans/2026-10-24-polish-and-next-development.md) details manual refresh, local preferences and actionable overflow.
+- [Brand kit](assets/kit/preview_sheet_lite.html) includes concepts, original marks and platform/social exports. The banner is an illustration, not an app screenshot. A [static banner](assets/logo.svg) is also available.
 
 ## License
 
-Undecided, on purpose. GPL would block an App Store build later, and the
-separator trick does work under App Store rules. The decision waits for the
-store decision.
+No license has been selected in this repository.
