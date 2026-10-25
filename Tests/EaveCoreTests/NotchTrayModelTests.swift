@@ -5,7 +5,8 @@ import Testing
 @Suite("NotchTrayModel")
 struct NotchTrayModelTests {
     private func item(_ id: String, width: CGFloat) -> NotchTrayItem {
-        NotchTrayItem(id: id, title: id, width: width)
+        let scriptItem = ScriptItem(title: id, namespace: id)
+        return NotchTrayItem(id: id, title: id, width: width, scriptItem: scriptItem)
     }
 
     @Test func everythingFits() {
