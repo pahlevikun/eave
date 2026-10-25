@@ -1,44 +1,55 @@
 import Foundation
 
-/// Runs a plugin script with a wall-clock timeout and a returned-output cap.
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
+
+/// Runs a plugin script with a wall-clock timeout and separate returned/generated caps.
 ///
-/// Temporary output files can grow until execution ends. The read cap bounds
-/// returned memory, not disk use during execution.
-///
-/// Output goes to a temp file rather than a pipe, for a concrete reason: a
-/// grandchild process (the `sleep` inside a shell) also holds the write end
-/// of a pipe, so the pipe reader never sees EOF and the caller hangs even
-/// after the child is killed. A file has no such problem, and the size cap
-/// can still be enforced at read time.
+/// Output goes to temp files rather than pipes so a grandchild cannot hold a pipe
+/// open and deadlock the reader after the child is killed.
 public struct ScriptRunner: Sendable {
-    public struct Output: Sendable {
+    public struct RunOutput: Equatable, Sendable {
+        /// Stdout kept in memory, cut at `OutputLimits.returnedBytes`.
         public let stdout: String
+        /// Stderr kept in memory, cut at `OutputLimits.returnedBytes`.
         public let stderr: String
         public let exitCode: Int32
-        public let truncated: Bool
+        /// The child wrote more than the returned cap, so the text above is partial.
+        public let returnedBytesTruncated: Bool
+        /// The child hit the generated cap while it was still running.
+        public let generatedBytesExceeded: Bool
     }
 
-    public enum RunError: Error, Equatable {
-        case notExecutable(String)
-        case timedOut(seconds: Double)
+    public enum RunError: Error, Equatable, Sendable {
+        case notExecutable(path: String)
+        case timedOut(seconds: TimeInterval)
+        case generatedTooMuch(bytes: Int)
     }
-
-    /// Maximum bytes read from each output file after execution.
-    public static let outputLimit = 1 << 20
 
     public let timeout: TimeInterval
+    public let limits: OutputLimits
 
-    public init(timeout: TimeInterval = 5) {
+    private static let pollInterval: TimeInterval = 0.05
+    private static let terminateGrace: TimeInterval = 0.3
+    private static let postKillWait: TimeInterval = 0.3
+
+    public init(timeout: TimeInterval = 5, limits: OutputLimits = .default) {
         self.timeout = timeout
+        self.limits = limits
     }
 
     public func run(
         path: String,
         arguments: [String] = [],
         environment: [String: String]? = nil
-    ) throws -> Output {
+    ) throws -> RunOutput {
         guard FileManager.default.isExecutableFile(atPath: path) else {
-            throw RunError.notExecutable(path)
+            throw RunError.notExecutable(path: path)
         }
 
         let tmpDir = FileManager.default.temporaryDirectory
@@ -51,7 +62,6 @@ public struct ScriptRunner: Sendable {
         guard FileManager.default.createFile(atPath: outURL.path, contents: nil),
               FileManager.default.createFile(atPath: errURL.path, contents: nil)
         else {
-            try? FileManager.default.removeItem(at: tmpDir)
             throw CocoaError(.fileWriteUnknown)
         }
 
@@ -61,8 +71,6 @@ public struct ScriptRunner: Sendable {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
-        // Minimal environment: a plugin needs none of the user's shell setup,
-        // and inheriting all of it exposes tokens and secrets to the child.
         process.environment = environment ?? [
             "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin",
             "HOME": NSHomeDirectory(),
@@ -72,61 +80,119 @@ public struct ScriptRunner: Sendable {
 
         try process.run()
 
-        let exited = waitForExit(process, upTo: timeout)
-        if !exited { terminate(process) }
+        var generatedBytesExceeded = false
+        var consecutiveTruncations = 0
+        let waitResult = waitForExit(
+            process,
+            stdoutURL: outURL,
+            stderrURL: errURL,
+            upTo: timeout,
+            generatedBytesExceeded: &generatedBytesExceeded,
+            consecutiveTruncations: &consecutiveTruncations
+        )
+
+        if waitResult == .generatedTooMuch {
+            terminate(process)
+            try? outHandle.close()
+            try? errHandle.close()
+            throw RunError.generatedTooMuch(bytes: limits.generatedBytes)
+        }
+
+        if waitResult == .timedOut {
+            terminate(process)
+        }
         try? outHandle.close()
         try? errHandle.close()
 
         let stdoutData = readCapped(at: outURL)
         let stderrData = readCapped(at: errURL)
 
-        if !exited {
+        if waitResult == .timedOut {
             throw RunError.timedOut(seconds: timeout)
         }
 
-        return Output(
+        return RunOutput(
             stdout: String(decoding: stdoutData.data, as: UTF8.self),
             stderr: String(decoding: stderrData.data, as: UTF8.self),
             exitCode: process.terminationStatus,
-            truncated: stdoutData.truncated || stderrData.truncated
+            returnedBytesTruncated: stdoutData.truncated || stderrData.truncated,
+            generatedBytesExceeded: generatedBytesExceeded
         )
     }
 
-    private func waitForExit(_ process: Process, upTo seconds: TimeInterval) -> Bool {
+    private enum WaitResult {
+        case exited
+        case timedOut
+        case generatedTooMuch
+    }
+
+    private func waitForExit(
+        _ process: Process,
+        stdoutURL: URL,
+        stderrURL: URL,
+        upTo seconds: TimeInterval,
+        generatedBytesExceeded: inout Bool,
+        consecutiveTruncations: inout Int
+    ) -> WaitResult {
         let deadline = Date().addingTimeInterval(seconds)
         while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-        return !process.isRunning
-    }
-
-    /// SIGTERM first so the script can clean up, then SIGKILL.
-    ///
-    /// Signals target the child's process group. Descendants that move to
-    /// another group are not supervised by this runner.
-    private func terminate(_ process: Process) {
-        let pid = process.processIdentifier
-        kill(-pid, SIGTERM)
-        let deadline = Date().addingTimeInterval(0.3)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
+            if OutputFileMonitor.enforceGeneratedCap(
+                stdoutURL: stdoutURL,
+                stderrURL: stderrURL,
+                generatedBytes: limits.generatedBytes,
+                consecutiveTruncations: &consecutiveTruncations
+            ) {
+                generatedBytesExceeded = true
+            }
+            if consecutiveTruncations >= 3 {
+                return .generatedTooMuch
+            }
+            Thread.sleep(forTimeInterval: Self.pollInterval)
         }
         if process.isRunning {
-            kill(-pid, SIGKILL)
+            return .timedOut
         }
-        process.waitUntilExit()
+        return .exited
     }
 
-    /// Reads a file up to the cap, without loading the whole thing first.
+    /// SIGTERM first, then SIGKILL. Signals the process group only when verified.
+    private func terminate(_ process: Process) {
+        let pid = process.processIdentifier
+        signalProcessGroup(pid: pid, signal: SIGTERM)
+
+        let graceDeadline = Date().addingTimeInterval(Self.terminateGrace)
+        while process.isRunning, Date() < graceDeadline {
+            Thread.sleep(forTimeInterval: Self.pollInterval)
+        }
+        if process.isRunning {
+            signalProcessGroup(pid: pid, signal: SIGKILL)
+        }
+
+        let killDeadline = Date().addingTimeInterval(Self.postKillWait)
+        while process.isRunning, Date() < killDeadline {
+            Thread.sleep(forTimeInterval: Self.pollInterval)
+        }
+    }
+
+    private func signalProcessGroup(pid: pid_t, signal: Int32) {
+        let group = getpgid(pid)
+        if group == pid {
+            kill(-pid, signal)
+        } else {
+            kill(pid, signal)
+        }
+    }
+
     private func readCapped(at url: URL) -> (data: Data, truncated: Bool) {
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             return (Data(), false)
         }
         defer { try? handle.close() }
 
-        let data = ((try? handle.read(upToCount: Self.outputLimit)) ?? nil) ?? Data()
+        let cap = limits.returnedBytes
+        let data = ((try? handle.read(upToCount: cap)) ?? nil) ?? Data()
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
         let size = (attributes?[.size] as? Int) ?? data.count
-        return (data, size > Self.outputLimit)
+        return (data, size > cap)
     }
 }
