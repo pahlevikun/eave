@@ -19,7 +19,7 @@ public enum MenuItemBuilder {
 
         if item.children.isEmpty {
             switch item.action {
-            case .openURL:
+            case .openURL, .runShell:
                 entry.action = #selector(MenuItemActionTarget.perform(_:))
                 entry.target = MenuItemActionTarget.shared
             case .unsupported, .none:
@@ -39,7 +39,7 @@ final class MenuItemActionTarget: NSObject {
 
     @objc func perform(_ sender: NSMenuItem) {
         guard let item = sender.representedObject as? ScriptItem else { return }
-        ActionDispatcher.perform(item.action)
+        ActionDispatcher.perform(item.action, shell: ActionDispatcher.productionShellExecutor)
     }
 }
 #endif

@@ -178,7 +178,7 @@ final class AppState: ObservableObject {
               let token = deliveryTokens[plugin.id],
               token.isCurrent
         else { return false }
-        return ActionDispatcher.perform(action)
+        return ActionDispatcher.perform(action, shell: ActionDispatcher.productionShellExecutor)
     }
 
     private func recomputeNotchTrayPlan() {
