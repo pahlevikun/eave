@@ -97,17 +97,20 @@ public struct ScriptRunner: Sendable {
         )
 
         if waitResult == .generatedTooMuch {
-            terminate(process)
             try? outHandle.close()
             try? errHandle.close()
+            terminate(process)
             throw RunError.generatedTooMuch(bytes: limits.generatedBytes)
         }
 
         if waitResult == .timedOut {
+            try? outHandle.close()
+            try? errHandle.close()
             terminate(process)
+        } else {
+            try? outHandle.close()
+            try? errHandle.close()
         }
-        try? outHandle.close()
-        try? errHandle.close()
 
         if OutputFileMonitor.fileSize(at: outURL) > limits.generatedBytes
             || OutputFileMonitor.fileSize(at: errURL) > limits.generatedBytes
@@ -182,6 +185,9 @@ public struct ScriptRunner: Sendable {
         let killDeadline = Date().addingTimeInterval(Self.postKillWait)
         while process.isRunning, Date() < killDeadline {
             Thread.sleep(forTimeInterval: Self.pollInterval)
+        }
+        if process.isRunning {
+            process.waitUntilExit()
         }
     }
 
