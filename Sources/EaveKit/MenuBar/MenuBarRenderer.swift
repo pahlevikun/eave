@@ -27,7 +27,7 @@ public final class MenuBarRenderer {
             return
         }
 
-        let title = first.title
+        let title = AnsiText.stripAndFirstLine(first.title)
         let imagePath = first.parameters["image"]
         let hasImage = imagePath != nil && !(imagePath?.isEmpty ?? true)
 
@@ -37,7 +37,7 @@ public final class MenuBarRenderer {
         }
 
         let statusItem = statusItem(for: namespace)
-        statusItem.button?.title = title
+        statusItem.button?.applyMenuBarTitle(title, color: first.color)
         statusItem.button?.image = loadImage(path: imagePath, namespace: namespace)
 
         rootItemsByNamespace[namespace] = first
