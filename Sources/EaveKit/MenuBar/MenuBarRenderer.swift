@@ -8,6 +8,7 @@ public final class MenuBarRenderer {
     private let pluginsDirectory: String
     private var statusItems: [String: NSStatusItem] = [:]
     private var pluginScriptPathByNamespace: [String: String] = [:]
+    private var rootItemsByNamespace: [String: ScriptItem] = [:]
     private var separatedForHide: Set<String> = []
 
     public init() {
@@ -39,6 +40,8 @@ public final class MenuBarRenderer {
         statusItem.button?.title = title
         statusItem.button?.image = loadImage(path: imagePath, namespace: namespace)
 
+        rootItemsByNamespace[namespace] = first
+
         if first.children.isEmpty {
             statusItem.menu = nil
         } else {
@@ -49,6 +52,7 @@ public final class MenuBarRenderer {
     public func remove(namespace: String) {
         separatedForHide.remove(namespace)
         pluginScriptPathByNamespace.removeValue(forKey: namespace)
+        rootItemsByNamespace.removeValue(forKey: namespace)
         guard let item = statusItems.removeValue(forKey: namespace) else { return }
         NSStatusBar.system.removeStatusItem(item)
     }
@@ -68,7 +72,9 @@ public final class MenuBarRenderer {
             let title = statusItems[namespace]?.button?.title ?? namespace
             // Placeholder width is a lie until measured.
             let width = measuredWidth(for: namespace) ?? measuredFallbackWidth
-            return NotchTrayItem(id: namespace, title: title, width: width)
+            let scriptItem = rootItemsByNamespace[namespace]
+                ?? ScriptItem(title: title, namespace: namespace)
+            return NotchTrayItem(id: namespace, title: title, width: width, scriptItem: scriptItem)
         }
     }
 

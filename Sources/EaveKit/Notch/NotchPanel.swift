@@ -3,6 +3,8 @@ import AppKit
 import EaveCore
 import SwiftUI
 
+public typealias NotchTrayPerformHandler = @MainActor (NotchTrayItem, ScriptItemAction) -> Bool
+
 @MainActor
 public final class NotchPanel {
     private var panel: NSPanel?
@@ -10,9 +12,14 @@ public final class NotchPanel {
     private var localMonitor: Any?
 
     private let onClose: () -> Void
+    private var performHandler: NotchTrayPerformHandler = { _, _ in false }
 
     public var isOpen: Bool { panel != nil }
     public init(onClose: @escaping () -> Void = {}) { self.onClose = onClose }
+
+    public func setPerformHandler(_ handler: @escaping NotchTrayPerformHandler) {
+        performHandler = handler
+    }
 
     public func open(plan: NotchTrayModel.Plan, on screen: NSScreen) {
         close()
@@ -69,15 +76,24 @@ public final class NotchPanel {
             menuBarHeight: NSStatusBar.system.thickness,
             contentHeight: CGFloat(max(1, plan.overflowed.count) * 32 + 100)
         )
-        Self.updateContent(of: panel, plan: plan)
+        updateContent(of: panel, plan: plan)
         panel.setFrame(NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: true)
     }
 
-    static func updateContent(of panel: NSPanel, plan: NotchTrayModel.Plan) {
+    func updateContent(of panel: NSPanel, plan: NotchTrayModel.Plan) {
+        Self.updateContent(of: panel, plan: plan, onPerform: performHandler)
+    }
+
+    static func updateContent(
+        of panel: NSPanel,
+        plan: NotchTrayModel.Plan,
+        onPerform: @escaping (NotchTrayItem, ScriptItemAction) -> Bool = { _, _ in false }
+    ) {
+        let view = NotchTrayView(plan: plan, onPerform: onPerform)
         if let content = panel.contentView as? NSHostingView<NotchTrayView> {
-            if content.rootView.plan != plan { content.rootView = NotchTrayView(plan: plan) }
+            if content.rootView.plan != plan { content.rootView = view }
         } else {
-            panel.contentView = NSHostingView(rootView: NotchTrayView(plan: plan))
+            panel.contentView = NSHostingView(rootView: view)
         }
     }
 

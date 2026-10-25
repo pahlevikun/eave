@@ -51,8 +51,10 @@ struct NativePresentationTests {
 
     private func overflowFixture() throws -> (NSPanel, NotchTrayModel.Plan, NSScrollView) {
         _ = NSApplication.shared
-        let plan = NotchTrayModel.Plan(kept: [], overflowed: (0..<30).map {
-            NotchTrayItem(id: "row\($0)", title: "Overflow title \($0)", width: 100)
+        let plan = NotchTrayModel.Plan(kept: [], overflowed: (0..<30).map { index in
+            let title = "Overflow title \(index)"
+            let scriptItem = ScriptItem(title: title, namespace: "row\(index)")
+            return NotchTrayItem(id: "row\(index)", title: title, width: 100, scriptItem: scriptItem)
         })
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 360),
                             styleMask: .borderless, backing: .buffered, defer: false)
@@ -83,7 +85,12 @@ struct NativePresentationTests {
         defer { panel.close() }
         let oldHeight = try #require(before.documentView).frame.height
         let changed = NotchTrayModel.Plan(kept: [], overflowed: plan.overflowed + [
-            NotchTrayItem(id: "new", title: "New overflow title", width: 100),
+            NotchTrayItem(
+                id: "new",
+                title: "New overflow title",
+                width: 100,
+                scriptItem: ScriptItem(title: "New overflow title", namespace: "new")
+            ),
         ])
         NotchPanel.updateContent(of: panel, plan: changed)
         layout(panel)
