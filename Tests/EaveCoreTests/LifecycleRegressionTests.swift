@@ -114,6 +114,83 @@ struct LifecycleRegressionTests {
         #expect(result == .items([ScriptItem(title: replacePath ? "new" : "old", namespace: "fixture")]))
     }
 
+    @Test func manualRequestStartsOneRunAndDeliversOnce() async throws {
+        let fixture = try ControlledPlugin()
+        defer { fixture.cleanup() }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome, _ in box.record(outcome) }
+        await scheduler.setPlugins([fixture.plugin])
+        try fixture.unblock()
+        let result = await scheduler.requestRun(pluginID: fixture.plugin.id)
+        #expect(result == .queued)
+        _ = try await box.wait()
+        #expect(box.count == 0)
+    }
+
+    @Test func repeatedManualRequestWhileBlockingReturnsAlreadyRunning() async throws {
+        let fixture = try ControlledPlugin()
+        defer { fixture.cleanup() }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome, _ in box.record(outcome) }
+        await scheduler.setPlugins([fixture.plugin])
+        #expect(await scheduler.requestRun(pluginID: fixture.plugin.id) == .queued)
+        try await eventually { FileManager.default.fileExists(atPath: fixture.started.path) }
+        #expect(await scheduler.requestRun(pluginID: fixture.plugin.id) == .alreadyRunning)
+        try fixture.unblock()
+        _ = try await box.wait()
+        #expect(box.count == 0)
+    }
+
+    @Test func manualRequestForUnknownPluginIsUnavailable() async throws {
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome, _ in box.record(outcome) }
+        #expect(await scheduler.requestRun(pluginID: "missing") == .unavailable)
+        #expect(box.count == 0)
+    }
+
+    @Test func manualRequestAfterRemovalIsUnavailable() async throws {
+        let fixture = try ControlledPlugin()
+        defer { fixture.cleanup() }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome, _ in box.record(outcome) }
+        await scheduler.setPlugins([fixture.plugin])
+        await scheduler.setPlugins([])
+        #expect(await scheduler.requestRun(pluginID: fixture.plugin.id) == .unavailable)
+        #expect(box.count == 0)
+    }
+
+    @Test func manualRunRestartsIntervalFromCompletion() async throws {
+        let fixture = try ControlledPlugin()
+        defer { fixture.cleanup() }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome, _ in box.record(outcome) }
+        await scheduler.setPlugins([fixture.plugin])
+        try fixture.unblock()
+        #expect(await scheduler.requestRun(pluginID: fixture.plugin.id) == .queued)
+        _ = try await box.wait()
+        let diagnostics = try #require(await scheduler.diagnostics(for: fixture.plugin))
+        let finishedAt = diagnostics.finishedAt
+        #expect(await scheduler.tick(now: finishedAt.addingTimeInterval(fixture.plugin.interval.seconds - 0.01)) == 0)
+        #expect(await scheduler.tick(now: finishedAt.addingTimeInterval(Double(fixture.plugin.interval.seconds))) == 1)
+    }
+
+    @Test func removedPluginSuppressesInFlightManualRun() async throws {
+        let fixture = try ControlledPlugin()
+        defer { fixture.cleanup() }
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler { _, outcome, _ in box.record(outcome) }
+        let tokens = await scheduler.setPlugins([fixture.plugin])
+        #expect(await scheduler.requestRun(pluginID: fixture.plugin.id) == .queued)
+        try await eventually { FileManager.default.fileExists(atPath: fixture.started.path) }
+        await scheduler.setPlugins([])
+        #expect(tokens[fixture.plugin.id]?.isCurrent == false)
+        #expect(await scheduler.isRunning(fixture.plugin))
+        try fixture.unblock()
+        try await eventually { await !scheduler.isRunning(fixture.plugin) }
+        #expect(box.count == 0)
+        #expect(await scheduler.diagnostics(for: fixture.plugin) == nil)
+    }
+
     @Test func queuedDeliveryCanBeRejectedAfterActorHop() async throws {
         let fixture = try ControlledPlugin()
         defer { fixture.cleanup() }
