@@ -160,7 +160,12 @@ struct ScriptRunnerLimitsTests {
         #expect(throws: ScriptRunner.RunError.self) {
             try ScriptRunner(timeout: 0.2).run(path: slowPath)
         }
-        #expect(eaveRunDirNames().subtracting(before).isEmpty)
+        var leaked = eaveRunDirNames().subtracting(before)
+        for _ in 0..<20 where !leaked.isEmpty {
+            Thread.sleep(forTimeInterval: 0.05)
+            leaked = eaveRunDirNames().subtracting(before)
+        }
+        #expect(leaked.isEmpty)
 
         #expect(throws: ScriptRunner.RunError.self) {
             try ScriptRunner().run(path: "/etc/hostname")
