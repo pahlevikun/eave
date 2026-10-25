@@ -104,6 +104,9 @@ final class AppState: ObservableObject {
                 await self?.tick()
             }
         }
+        MenuBarActions.didPerform = { [weak self] item in
+            self?.scheduleRefreshAfterAction(for: item)
+        }
     }
 
     func shutdown() {
@@ -178,7 +181,17 @@ final class AppState: ObservableObject {
               let token = deliveryTokens[plugin.id],
               token.isCurrent
         else { return false }
-        return ActionDispatcher.perform(action, shell: ActionDispatcher.productionShellExecutor)
+        let ran = ActionDispatcher.perform(action, shell: ActionDispatcher.productionShellExecutor)
+        if ran {
+            scheduleRefreshAfterAction(for: trayItem.scriptItem)
+        }
+        return ran
+    }
+
+    private func scheduleRefreshAfterAction(for item: ScriptItem) {
+        guard item.presentation.refreshesAfterAction else { return }
+        guard let plugin = plugins.first(where: { $0.namespace == item.namespace }) else { return }
+        Task { _ = await scheduler.requestRun(pluginID: plugin.id) }
     }
 
     private func recomputeNotchTrayPlan() {
