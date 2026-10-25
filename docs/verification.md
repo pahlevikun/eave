@@ -6,7 +6,7 @@ The 2026-10-24 implementation and three independent review fixes form the histor
 
 | Check | Result |
 |---|---|
-| GitHub Actions job `core` (ubuntu-22.04) | `swift build` and `swift test`: **142 tests passed** on Linux |
+| GitHub Actions job `core` (ubuntu-22.04) | `swift build` and `swift test`: **146 tests passed** on Linux |
 | GitHub Actions job `appkit` (macos-15) | Same Swift package suite as `core`, plus guarded AppKit/SwiftUI fixtures, green in Actions |
 | GitHub Actions job `app` (macos-15) | `xcodegen generate` and unsigned `xcodebuild` of the Eave scheme, green in Actions |
 | Application sources, Swift 6 typecheck | Passed on the command-line host used for this record |
