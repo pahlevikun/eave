@@ -67,6 +67,12 @@ public final class PluginDeliveryToken: @unchecked Sendable {
 public actor PluginScheduler {
     public typealias Delivery = @Sendable (Plugin, PluginOutcome, PluginDeliveryToken) -> Void
 
+    private static let execution = DispatchQueue(
+        label: "com.eave.plugin-execution",
+        qos: .utility,
+        attributes: .concurrent
+    )
+
     private struct Registration {
         let plugin: Plugin
         let token: PluginDeliveryToken
@@ -121,10 +127,10 @@ public actor PluginScheduler {
             let ticket = Ticket(plugin: plugin, id: UUID(), token: registration.token)
             running[plugin.id] = ticket
             let runner = self.runner
-            Task.detached { [weak self] in
+            Self.execution.async { [weak self] in
                 let run = Self.run(plugin: plugin, with: runner)
                 let finishedAt = Date()
-                await self?.finish(plugin: plugin, ticket: ticket, run: run, finishedAt: finishedAt)
+                Task { await self?.finish(plugin: plugin, ticket: ticket, run: run, finishedAt: finishedAt) }
             }
         }
         return due.count
