@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import EaveCore
 
-@Suite("ScriptRunner")
+@Suite("ScriptRunner", .serialized)
 struct ScriptRunnerTests {
     /// Menulis script sementara, mengembalikan path-nya.
     private func makeScript(_ body: String) throws -> String {

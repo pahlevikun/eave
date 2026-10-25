@@ -37,7 +37,7 @@ private func eventually(_ condition: () async -> Bool) async throws {
     throw CocoaError(.fileReadUnknown)
 }
 
-@Suite("Lifecycle regressions")
+@Suite("Lifecycle regressions", .serialized)
 struct LifecycleRegressionTests {
     @Test func intervalOverflowIsRejectedAndBoundaryIsAccepted() {
         #expect(RefreshInterval.parse(fromFilename: "clock.\(Int.max)d.sh") == nil)

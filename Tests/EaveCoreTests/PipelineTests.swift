@@ -5,7 +5,7 @@ import Testing
 /// End-to-end for the only pipeline that exists today: name a plugin file,
 /// run it, parse its output. Everything the app will do starts here, so this
 /// test is the honest proof that the foundation is more than isolated parts.
-@Suite("Pipeline")
+@Suite("Pipeline", .serialized)
 struct PipelineTests {
     private func makePlugin(named name: String, body: String) throws -> String {
         let dir = FileManager.default.temporaryDirectory
