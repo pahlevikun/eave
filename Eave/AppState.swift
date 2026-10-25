@@ -201,14 +201,33 @@ final class AppState: ObservableObject {
     }
 
     private func ensurePluginsDirectory() {
+        let fileManager = FileManager.default
         var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: pluginsDirectory, isDirectory: &isDir) {
+        if !fileManager.fileExists(atPath: pluginsDirectory, isDirectory: &isDir) {
+            try? fileManager.createDirectory(
+                atPath: pluginsDirectory,
+                withIntermediateDirectories: true
+            )
+        }
+        seedStarterPluginIfNeeded()
+    }
+
+    private func seedStarterPluginIfNeeded() {
+        let fileManager = FileManager.default
+        guard let names = try? fileManager.contentsOfDirectory(atPath: pluginsDirectory) else {
             return
         }
-        try? FileManager.default.createDirectory(
-            atPath: pluginsDirectory,
-            withIntermediateDirectories: true
-        )
+        guard StarterPlugin.shouldSeed(existingFilenames: names) else { return }
+
+        let path = (pluginsDirectory as NSString).appendingPathComponent(StarterPlugin.filename)
+        guard !fileManager.fileExists(atPath: path) else { return }
+
+        do {
+            try StarterPlugin.contents.write(toFile: path, atomically: true, encoding: .utf8)
+            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
+        } catch {
+            NSLog("Eave: could not write starter plugin: \(error)")
+        }
     }
 
     func rescanPlugins() {
