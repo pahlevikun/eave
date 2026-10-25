@@ -170,7 +170,7 @@ struct LifecycleRegressionTests {
         _ = try await box.wait()
         let diagnostics = try #require(await scheduler.diagnostics(for: fixture.plugin))
         let finishedAt = diagnostics.finishedAt
-        #expect(await scheduler.tick(now: finishedAt.addingTimeInterval(fixture.plugin.interval.seconds - 0.01)) == 0)
+        #expect(await scheduler.tick(now: finishedAt.addingTimeInterval(Double(fixture.plugin.interval.seconds) - 0.01)) == 0)
         #expect(await scheduler.tick(now: finishedAt.addingTimeInterval(Double(fixture.plugin.interval.seconds))) == 1)
     }
 
