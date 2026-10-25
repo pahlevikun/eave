@@ -62,6 +62,16 @@ public final class PluginDeliveryToken: @unchecked Sendable {
     public func invalidate() { lock.withLock { current = false } }
 }
 
+/// Result of asking the scheduler to run one plugin immediately.
+public enum RunRequestResult: Equatable, Sendable {
+    /// A run started for this request.
+    case queued
+    /// The plugin is already running. Nothing new started.
+    case alreadyRunning
+    /// No current registration for this id, so there is nothing to run.
+    case unavailable
+}
+
 /// Owns registrations and run tickets. Retired processes finish normally and
 /// retain their in-flight exclusion until their own completion arrives.
 public actor PluginScheduler {
@@ -124,16 +134,30 @@ public actor PluginScheduler {
         )
         for plugin in due {
             guard let registration = registrations[plugin.id] else { continue }
-            let ticket = Ticket(plugin: plugin, id: UUID(), token: registration.token)
-            running[plugin.id] = ticket
-            let runner = self.runner
-            Self.execution.async { [weak self] in
-                let run = Self.run(plugin: plugin, with: runner)
-                let finishedAt = Date()
-                Task { await self?.finish(plugin: plugin, ticket: ticket, run: run, finishedAt: finishedAt) }
-            }
+            enqueueRun(plugin: plugin, token: registration.token)
         }
         return due.count
+    }
+
+    @discardableResult
+    public func requestRun(pluginID: String) -> RunRequestResult {
+        if running[pluginID] != nil { return .alreadyRunning }
+        guard let registration = registrations[pluginID], registration.token.isCurrent else {
+            return .unavailable
+        }
+        enqueueRun(plugin: registration.plugin, token: registration.token)
+        return .queued
+    }
+
+    private func enqueueRun(plugin: Plugin, token: PluginDeliveryToken) {
+        let ticket = Ticket(plugin: plugin, id: UUID(), token: token)
+        running[plugin.id] = ticket
+        let runner = self.runner
+        Self.execution.async { [weak self] in
+            let run = Self.run(plugin: plugin, with: runner)
+            let finishedAt = Date()
+            Task { await self?.finish(plugin: plugin, ticket: ticket, run: run, finishedAt: finishedAt) }
+        }
     }
 
     public func isRunning(_ plugin: Plugin) -> Bool {
