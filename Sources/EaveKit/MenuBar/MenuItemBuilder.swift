@@ -18,9 +18,12 @@ public enum MenuItemBuilder {
         entry.representedObject = item
 
         if item.children.isEmpty {
-            if let href = item.parameters["href"], URL(string: href) != nil {
-                entry.action = #selector(MenuItemActionTarget.openLink(_:))
+            switch item.action {
+            case .openURL:
+                entry.action = #selector(MenuItemActionTarget.perform(_:))
                 entry.target = MenuItemActionTarget.shared
+            case .unsupported, .none:
+                entry.isEnabled = false
             }
         } else {
             entry.submenu = menu(for: item)
@@ -34,12 +37,9 @@ public enum MenuItemBuilder {
 final class MenuItemActionTarget: NSObject {
     static let shared = MenuItemActionTarget()
 
-    @objc func openLink(_ sender: NSMenuItem) {
-        guard let item = sender.representedObject as? ScriptItem,
-              let href = item.parameters["href"],
-              let url = URL(string: href)
-        else { return }
-        NSWorkspace.shared.open(url)
+    @objc func perform(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? ScriptItem else { return }
+        ActionDispatcher.perform(item.action)
     }
 }
 #endif

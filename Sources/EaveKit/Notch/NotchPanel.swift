@@ -39,7 +39,7 @@ public final class NotchPanel {
             if event.type != .keyDown, event.window !== self.panel { self.close() }
             return event
         }
-        Self.present(panel, reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        Self.present(panel, reduceMotion: ActionDispatcher.accessibilityDisplayShouldReduceMotion)
     }
 
     static func present(_ panel: NSPanel, reduceMotion: Bool) {

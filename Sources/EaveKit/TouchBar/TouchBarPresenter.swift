@@ -134,10 +134,10 @@ extension TouchBarPresenter: NSTouchBarDelegate {
 
     @objc private func touchBarButtonPressed(_ sender: NSButton) {
         guard let id = sender.identifier?.rawValue,
-              let href = hrefByID[id],
-              let url = URL(string: href)
+              let href = hrefByID[id]
         else { return }
-        NSWorkspace.shared.open(url)
+        let item = ScriptItem(title: "", namespace: "", parameters: ["href": href])
+        ActionDispatcher.perform(item.action)
     }
 }
 
