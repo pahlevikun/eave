@@ -67,7 +67,7 @@ public final class NotchPanel {
         let frame = NotchPanelGeometry.frame(
             screen: Self.rect(screen.frame), visibleFrame: Self.rect(screen.visibleFrame), notch: notch,
             menuBarHeight: NSStatusBar.system.thickness,
-            contentHeight: CGFloat(max(1, plan.overflowed.count)) * 32 + 100
+            contentHeight: CGFloat(max(1, plan.overflowed.count) * 32 + 100)
         )
         Self.updateContent(of: panel, plan: plan)
         panel.setFrame(NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: true)
