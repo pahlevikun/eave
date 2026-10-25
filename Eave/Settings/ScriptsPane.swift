@@ -20,6 +20,7 @@ final class ScriptsPane: SettingsPane, NSTableViewDataSource, NSTableViewDelegat
     private let noticeRow = NSStackView()
     private let detailGroup = NSStackView()
     private let detailHeading = NSTextField(labelWithString: "Last run details")
+    private lazy var runControls = ScriptsRunNowControls(target: self, action: #selector(runNowClicked))
     private let showDetails = NSButton(title: "Show scan details", target: nil, action: nil)
     private enum DetailMode { case lastRun, scan }
     private var detailMode = DetailMode.lastRun
@@ -105,7 +106,7 @@ final class ScriptsPane: SettingsPane, NSTableViewDataSource, NSTableViewDelegat
         detailGroup.alignment = .leading
         detailGroup.spacing = SettingsStyle.Metric.related
         detailGroup.addArrangedSubview(detailHeading)
-        detailGroup.addArrangedSubview(detailScroll)
+        runControls.embed(beside: detailScroll, in: detailGroup)
         let body = NSTextField(wrappingLabelWithString: "Executable scripts run automatically at their filename interval.")
         body.font = SettingsStyle.TypeRole.body
         body.textColor = .secondaryLabelColor
@@ -234,14 +235,17 @@ final class ScriptsPane: SettingsPane, NSTableViewDataSource, NSTableViewDelegat
         showDetails.title = detailMode == .scan ? "Show last run" : "Show scan details"
         showDetails.isHidden = rows.isEmpty
         if detailMode == .scan {
+            runControls.update(pluginID: nil, running: false, scanMode: true)
             setDetailText(scanDetails)
             return
         }
         guard rows.indices.contains(table.selectedRow) else {
+            runControls.update(pluginID: nil, running: false, scanMode: false)
             setDetailText("Select a script to inspect its last run.")
             return
         }
         let row = rows[table.selectedRow]
+        runControls.update(pluginID: row.plugin.id, running: row.running, scanMode: false)
         guard let diagnostics = row.diagnostics else {
             setDetailText("\(row.plugin.filename)\n\(row.status)")
             return
@@ -291,9 +295,33 @@ final class ScriptsPane: SettingsPane, NSTableViewDataSource, NSTableViewDelegat
 
     @objc private func openFolder() { appState?.openPluginsFolder() }
     @objc private func retryScan() { appState?.rescanPlugins() }
+
+    @objc private func runNowClicked() {
+        guard rows.indices.contains(table.selectedRow), let appState else { return }
+        let pluginID = rows[table.selectedRow].plugin.id
+        runControls.clearNotice()
+        Task { @MainActor in
+            let result = await appState.runNow(pluginID: pluginID)
+            switch result {
+            case .queued:
+                refresh()
+            case .alreadyRunning:
+                runControls.showAlreadyRunning()
+            case .unavailable:
+                break
+            }
+            if rows.indices.contains(table.selectedRow) {
+                let row = rows[table.selectedRow]
+                runControls.update(pluginID: row.plugin.id, running: row.running, scanMode: false)
+            }
+        }
+    }
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
     func tableViewSelectionDidChange(_ notification: Notification) {
-        if !updatingRows { updateDetail() }
+        if !updatingRows {
+            runControls.clearNotice()
+            updateDetail()
+        }
     }
 
     func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
