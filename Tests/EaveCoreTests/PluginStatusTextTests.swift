@@ -76,4 +76,46 @@ struct PluginStatusTextTests {
         )
         #expect(PluginStatusText.describe(diagnostics: diag, now: now) == "ok, 2h ago")
     }
+
+    @Test func returnedCapWordingUsesDefaultLimit() {
+        let diag = PluginDiagnostics(
+            finishedAt: now,
+            exitCode: 0,
+            stderr: "",
+            outputTruncated: true
+        )
+        #expect(
+            PluginStatusText.describe(diagnostics: diag, now: now)
+                == "ok, 0s ago, \(PluginStatusText.returnedOutputTruncationNote)"
+        )
+    }
+
+    @Test func generatedCapWordingUsesDefaultLimit() {
+        let diag = PluginDiagnostics(
+            finishedAt: now,
+            exitCode: 0,
+            stderr: "",
+            outputTruncated: false,
+            generatedBytesExceeded: true
+        )
+        #expect(
+            PluginStatusText.describe(diagnostics: diag, now: now)
+                == "ok, 0s ago, \(PluginStatusText.generatedOutputExceededNote)"
+        )
+    }
+
+    @Test func hardStopWordingUsesDefaultGeneratedLimit() {
+        let diag = PluginDiagnostics(
+            finishedAt: now,
+            exitCode: nil,
+            stderr: "",
+            outputTruncated: false,
+            generatedBytesExceeded: true,
+            failure: .generatedTooMuch(bytes: OutputLimits.default.generatedBytes)
+        )
+        #expect(
+            PluginStatusText.describe(diagnostics: diag, now: now)
+                == "stopped after \(PluginStatusText.formatByteCap(OutputLimits.default.generatedBytes))"
+        )
+    }
 }

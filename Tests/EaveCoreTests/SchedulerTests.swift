@@ -190,6 +190,29 @@ struct PluginSchedulerTests {
         #expect(await scheduler.diagnostics(for: plugin)?.outputTruncated == true)
     }
 
+    @Test func diagnosticsFlagGeneratedCapExceeded() async throws {
+        let plugin = try makePlugin(
+            "chatty.5s.sh",
+            body: """
+            i=0
+            while [ $i -lt 40 ]; do printf '%04096s' '' | tr ' ' x; i=$((i+1)); done
+            """
+        )
+        defer { try? FileManager.default.removeItem(atPath: (plugin.path as NSString).deletingLastPathComponent) }
+        let cap = 32 << 10
+        let limits = OutputLimits(returnedBytes: cap, generatedBytes: cap)
+        let box = OutcomeBox()
+        let scheduler = PluginScheduler(runner: ScriptRunner(timeout: 2, limits: limits)) { _, outcome, _ in
+            box.record(outcome)
+        }
+        await scheduler.setPlugins([plugin])
+
+        _ = await scheduler.tick()
+        _ = try await box.wait()
+
+        #expect(await scheduler.diagnostics(for: plugin)?.generatedBytesExceeded == true)
+    }
+
     @Test func diagnosticsForNeverRunPluginAreNil() async throws {
         let plugin = try makePlugin("quiet.5s.sh", body: "echo hi")
         defer { try? FileManager.default.removeItem(atPath: (plugin.path as NSString).deletingLastPathComponent) }
