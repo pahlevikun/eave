@@ -74,13 +74,8 @@ public struct ScriptRunner: Sendable {
         let errHandle = try FileHandle(forWritingTo: errURL)
 
         let process = Process()
-        if let setsid = Self.setsidPath {
-            process.executableURL = URL(fileURLWithPath: setsid)
-            process.arguments = [path] + arguments
-        } else {
-            process.executableURL = URL(fileURLWithPath: path)
-            process.arguments = arguments
-        }
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
         process.environment = environment ?? [
             "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin",
             "HOME": NSHomeDirectory(),
@@ -196,15 +191,14 @@ public struct ScriptRunner: Sendable {
         }
     }
 
-    private static let setsidPath: String? = {
-        let candidates = ["/usr/bin/setsid", "/bin/setsid"]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
-    }()
-
     private static func removeTemporaryRunDirectory(_ url: URL) {
-        for _ in 0..<10 {
-            try? FileManager.default.removeItem(at: url)
-            if !FileManager.default.fileExists(atPath: url.path) { return }
+        let fm = FileManager.default
+        for name in ["stdout", "stderr"] {
+            try? fm.removeItem(at: url.appendingPathComponent(name))
+        }
+        for _ in 0..<40 {
+            try? fm.removeItem(at: url)
+            if !fm.fileExists(atPath: url.path) { return }
             Thread.sleep(forTimeInterval: Self.pollInterval)
         }
     }
