@@ -154,6 +154,23 @@ struct ScriptRunnerLimitsTests {
         #expect(probeErrno == ESRCH)
     }
 
+    @Test func runawayFloodStoppedBeforeTimeout() throws {
+        let before = eaveRunDirNames()
+        let path = try makeScript("while :; do printf '%04096s' '' | tr ' ' x; done")
+        let cap = 1 << 10
+        let start = Date()
+        #expect(throws: ScriptRunner.RunError.generatedTooMuch(bytes: cap)) {
+            try ScriptRunner(timeout: 3, limits: limits(returned: cap, generated: cap)).run(path: path)
+        }
+        #expect(Date().timeIntervalSince(start) < 2)
+        var leaked = eaveRunDirNames().subtracting(before)
+        for _ in 0..<20 where !leaked.isEmpty {
+            Thread.sleep(forTimeInterval: 0.05)
+            leaked = eaveRunDirNames().subtracting(before)
+        }
+        #expect(leaked.isEmpty)
+    }
+
     @Test func tempDirectoryRemovedOnSuccessTimeoutAndRefusal() throws {
         let before = eaveRunDirNames()
         let okPath = try makeScript("echo ok")
