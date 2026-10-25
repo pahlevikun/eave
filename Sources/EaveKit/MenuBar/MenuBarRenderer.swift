@@ -56,13 +56,12 @@ public final class MenuBarRenderer {
             statusItem.length = NSStatusItem.variableLength
         }
 
-        let button = statusItem.button
+        // No menu means no indicator: AppKit draws the indicator from the menu
+        // itself, and NSStatusBarButton has no flag to force it either way.
         if presentation.showsDropdown, !root.children.isEmpty {
             statusItem.menu = MenuItemBuilder.menu(for: root)
-            button?.showsMenuIndicator = true
         } else {
             statusItem.menu = nil
-            button?.showsMenuIndicator = false
         }
     }
 
