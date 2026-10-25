@@ -6,15 +6,16 @@ The 2026-10-24 implementation and three independent review fixes form the histor
 
 | Check | Result |
 |---|---|
-| Baseline at `c470903274ec80b030475f2cda34d2620e3800eb` | 98 tests passed |
-| Final Swift suite | **116 passed; one explicitly skipped** |
-| Application sources, Swift 6 typecheck | Passed |
+| GitHub Actions job `core` (ubuntu-22.04) | `swift build` and `swift test`: **142 tests passed** on Linux |
+| GitHub Actions job `appkit` (macos-15) | Same Swift package suite as `core`, plus guarded AppKit/SwiftUI fixtures, green in Actions |
+| GitHub Actions job `app` (macos-15) | `xcodegen generate` and unsigned `xcodebuild` of the Eave scheme, green in Actions |
+| Application sources, Swift 6 typecheck | Passed on the command-line host used for this record |
 | Independent source review and fix re-review | All three reported interaction defects closed |
 | Whitespace check | Passed |
 
-The final suite includes 103 Core, eight Kit and five passing Application tests. The skipped `removalClearsAllPresentationsAndFailures` fixture is opt-in through `EAVE_NATIVE_UI_TESTS=1`; its full native delivery path could not be established in this command-line host. It is not counted as a passing test.
+The Linux suite is the full shared package test run. The `appkit` job runs that suite on macOS with the IRGen workaround from CI and executes offscreen AppKit tests that do not run on Linux. No separate macOS-only test count is recorded here because this host did not run that job locally.
 
-Regression coverage includes checked interval overflow, actual completion time, retired/replaced registrations, in-flight exclusion, scan failure retention, watcher-start failure, truncation text and pure display geometry. Seven offscreen AppKit/SwiftUI tests verify diagnostic selection/scroll preservation, retained overflow scroll views and cached Touch Bar enabled-state changes. They execute no installed user plugins and open no URLs.
+Regression coverage includes checked interval overflow, actual completion time, retired/replaced registrations, in-flight exclusion, scan failure retention, watcher-start failure, truncation text and pure display geometry. Offscreen AppKit/SwiftUI tests verify diagnostic selection/scroll preservation, retained overflow scroll views and cached Touch Bar enabled-state changes. They execute no installed user plugins and open no URLs.
 
 The native fixes were reproduced before repair: six focused tests failed, and the shorter-document clamp guard already passed. All seven then passed. Changed overflow coverage appends a row while existing items survive. It does not establish every list-removal or display-placement scenario.
 
@@ -53,6 +54,8 @@ Standalone application typechecking passed, and offscreen native fixtures ran. A
 
 The final window, permission-assisted movement, physical Touch Bar, keyboard/VoiceOver behavior and multiple-display placement need a usable macOS desktop session. The same-path script-content policy also remains explicit: an unchanged Plugin registration is retained; the next execution reads changed file contents. No file-content fingerprint is claimed.
 
+Light and Dark rendering, VoiceOver, Reduce Motion, multi-display placement and physical Touch Bar hardware were not checked in a native desktop session for this record.
+
 ## Brand evidence
 
 Static and animated-fallback SVGs were rendered and inspected. Four core SVGs passed their audit and the medium kit passed validation. Eave's ICNS decoded successfully; the status PDF is transparent and 18 × 18 points. Independent asset review passed. Stale artwork, unused animation rules and unavailable handoff references were removed; README embeds resolve.
@@ -61,4 +64,4 @@ Isolated Chromium verified advancing CSS animation time, the settled reading hol
 
 ## Before a release
 
-Run the matrix in [the development plan](plans/2026-10-24-polish-and-next-development.md#release-acceptance-matrix). Record actual Light/Dark, keyboard, VoiceOver, Reduced Motion, notched/nonnotched and Touch Bar observations. The app still executes trusted local scripts with the user's privileges. Returned-output limits do not bound temporary-file growth or guarantee descendant cleanup; those have a dedicated next-development slice.
+Run the matrix in [the development plan](plans/2026-10-24-polish-and-next-development.md#release-acceptance-matrix). Record actual Light/Dark, keyboard, VoiceOver, Reduced Motion, notched/nonnotched and Touch Bar observations. The app still executes trusted local scripts with the user's privileges.

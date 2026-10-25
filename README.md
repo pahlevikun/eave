@@ -4,7 +4,7 @@
 
 # <img src="assets/icon.svg" alt="" width="28" height="28" align="top" /> Eave
 
-Eave is a native macOS menu bar app for local scripts. It reads executable scripts from `~/.eave/plugins`, runs them on their filename interval and displays their output. Settings exposes script status and diagnostics, menu bar hiding, an informational overflow list and a Settings-scoped Touch Bar presenter.
+Eave is a native macOS menu bar app for local scripts. It reads executable scripts from `~/.eave/plugins`, runs them on their filename interval and displays their output. Settings exposes script status and diagnostics, menu bar hiding, an overflow list for items that did not fit, and a Settings-scoped Touch Bar presenter.
 
 Requires macOS 14 or later and Swift 6. The application uses AppKit and has no external package dependencies.
 
@@ -34,13 +34,15 @@ Make the file executable with `chmod +x`. Only install scripts you trust; script
 ## Current behavior
 
 - Script output supports the implemented xbar-style text subset and a small JSON title/image payload. It is not full xbar compatibility.
-- Menu children can open `href` links. Top-level rendering uses the first item's title and optional image.
+- Menu children can open supported `href` links. `bash=` is not executed. Top-level rendering uses the first item's title and optional image.
 - Deleted registrations are removed from app presentation. Results from retired runs are rejected.
 - Basic menu bar hiding uses a separator. Accessibility enables the implemented movement path; ordinary scripts do not require it.
-- Overflow is a live informational list. It does not expose every plugin action or manage unrelated apps' icons.
+- Overflow lists live items that did not fit in the menu bar. Rows with a supported link can open it. Other actions stay inert.
+- The Scripts pane can run the selected script once with **Run now**, outside its interval.
+- Hide collapsed state and Touch Bar enabled state persist locally with a schema version. Unknown or newer schema versions fall back to defaults.
 - Touch Bar presentation is attached to Eave Settings. It is not a global Touch Bar replacement.
-
-`ScriptRunner` caps returned stdout/stderr and has a timeout. The cap does not bound temporary-file growth while a script runs. Runtime output bounds and descendant cleanup have a dedicated [next-development task](docs/plans/2026-10-24-polish-and-next-development.md#next-0-bound-script-output-and-child-lifetime).
+- `ScriptRunner` uses a wall-clock timeout (default 5 seconds). On timeout or stop it signals the child process group only when `getpgid` shows the child is the group leader.
+- Returned stdout and stderr are capped separately from on-disk output while a script runs (defaults 1 MiB returned and 8 MiB per stream on disk). Polls truncate streams past the generated cap. A stream that grows 16 times the cap between two polls is treated as runaway and the run stops.
 
 ## Development references
 
