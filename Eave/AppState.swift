@@ -8,6 +8,11 @@ final class AppState: ObservableObject {
     let menuBarRenderer = MenuBarRenderer()
     let permissionStore = PermissionStore()
     private(set) var plugins: [Plugin] = []
+    private(set) var scanError: String?
+    private(set) var hideStatus = "Menu bar section is expanded."
+    private var deliveryTokens: [String: PluginDeliveryToken] = [:]
+    private var scanTask: Task<Void, Never>?
+    private var scanRevision = 0
     private(set) var scanRejections: [PluginDiscovery.Rejection] = []
     private(set) var lastRunFailed: [String: Bool] = [:]
 
@@ -36,7 +41,7 @@ final class AppState: ObservableObject {
     private var touchBarItemsByNamespace: [String: [ScriptItem]] = [:]
     private(set) var isTouchBarEnabled = true
 
-    private let notchPanel = NotchPanel()
+    private lazy var notchPanel = NotchPanel { [weak self] in self?.objectWillChange.send() }
     private(set) var notchTrayPlan = NotchTrayModel.Plan(kept: [], overflowed: [])
 
     private var scheduler: PluginScheduler!
@@ -44,15 +49,18 @@ final class AppState: ObservableObject {
     private var pluginWatcher: PluginFolderWatcher?
     private var watcherFailed = false
 
-    private let pluginsDirectory: String
+    let pluginsDirectory: String
+
+    var isNotchTrayOpen: Bool { notchPanel.isOpen }
 
     var isHideSectionCollapsed: Bool { hiddenSectionController.isCollapsed }
 
-    init() {
-        pluginsDirectory = (NSHomeDirectory() as NSString).appendingPathComponent(".eave/plugins")
+    init(pluginsDirectory: String? = nil) {
+        self.pluginsDirectory = pluginsDirectory ?? (NSHomeDirectory() as NSString).appendingPathComponent(".eave/plugins")
         ensurePluginsDirectory()
-        scheduler = PluginScheduler { [weak self] plugin, outcome in
+        scheduler = PluginScheduler { [weak self] plugin, outcome, token in
             Task { @MainActor in
+                guard token.isCurrent, self?.deliveryTokens[plugin.id] === token else { return }
                 self?.handleDelivery(plugin: plugin, outcome: outcome)
             }
         }
@@ -101,7 +109,14 @@ final class AppState: ObservableObject {
         let members = menuBarRenderer.sectionMembers()
         let hasAccessibility = permissionStore.granted[.accessibility] == true
         let decision = HidePlan.decide(members: members, hasAccessibility: hasAccessibility)
-        hiddenSectionController.toggle(decision: decision)
+        switch hiddenSectionController.toggle(decision: decision) {
+        case .toggledSeparator:
+            hideStatus = isHideSectionCollapsed ? "Menu bar section is hidden." : "Menu bar section is expanded."
+        case .toggledFullMode(let skipped):
+            hideStatus = skipped.isEmpty ? "Menu bar section is hidden." : "Hidden with skipped items: " + skipped.joined(separator: ", ")
+        case .moveFailed(let id):
+            hideStatus = "Could not move \(id). The section may be partly moved."
+        }
         objectWillChange.send()
     }
 
@@ -120,24 +135,26 @@ final class AppState: ObservableObject {
         recomputeNotchTrayPlan()
         guard let screen = NSScreen.main else { return }
         notchPanel.toggle(plan: notchTrayPlan, on: screen)
+        objectWillChange.send()
     }
 
     private func recomputeNotchTrayPlan() {
         guard let screen = NSScreen.main else { return }
         let frame = screen.frame
-        let auxLeft = screen.auxiliaryTopLeftArea?.width ?? 0
-        let notchWidth = NotchGeometry.width(
-            screenWidth: frame.width,
-            auxLeftWidth: auxLeft,
-            auxRightWidth: screen.auxiliaryTopRightArea?.width ?? 0
-        )
-        let notchMaxX = frame.minX + auxLeft + notchWidth
-        let budget = NotchGeometry.usableWidthRightOfNotch(
-            screenMaxX: frame.maxX,
-            notchMaxX: notchMaxX
-        )
+        let budget: CGFloat
+        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+            let notchWidth = NotchGeometry.width(
+                screenWidth: frame.width, auxLeftWidth: left.width, auxRightWidth: right.width
+            )
+            budget = NotchGeometry.usableWidthRightOfNotch(
+                screenMaxX: frame.maxX, notchMaxX: frame.minX + left.width + notchWidth
+            )
+        } else {
+            budget = max(0, frame.width - 16)
+        }
         let items = menuBarRenderer.notchTrayItems()
         notchTrayPlan = NotchTrayModel.plan(items: items, availableWidth: budget)
+        notchPanel.update(plan: notchTrayPlan, on: screen)
     }
 
     private func ensurePluginsDirectory() {
@@ -151,34 +168,62 @@ final class AppState: ObservableObject {
         )
     }
 
-    private func rescanPlugins() {
+    func rescanPlugins() {
         do {
             let result = try PluginDiscovery.scan(directory: pluginsDirectory)
+            let previous = plugins
+            let retained = Set(result.plugins.filter { previous.contains($0) }.map(\.id))
+            for plugin in previous where !retained.contains(plugin.id) {
+                deliveryTokens.removeValue(forKey: plugin.id)?.invalidate()
+                menuBarRenderer.remove(namespace: plugin.namespace)
+                touchBarItemsByNamespace.removeValue(forKey: plugin.namespace)
+                lastRunFailed.removeValue(forKey: plugin.id)
+            }
             plugins = result.plugins
             scanRejections = result.rejections
-            Task {
-                await scheduler.setPlugins(plugins)
+            scanError = nil
+            scanRevision += 1
+            let revision = scanRevision
+            let snapshot = plugins
+            let previousTask = scanTask
+            scanTask = Task { [weak self] in
+                await previousTask?.value
+                guard let self else { return }
+                let tokens = await scheduler.setPlugins(snapshot)
+                guard revision == scanRevision else { return }
+                deliveryTokens = tokens
+                objectWillChange.send()
             }
-        } catch PluginDiscovery.ScanError.directoryMissing {
-            ensurePluginsDirectory()
-            plugins = []
-            scanRejections = []
-            Task {
-                await scheduler.setPlugins([])
-            }
+            refreshTouchBar()
+            recomputeNotchTrayPlan()
         } catch {
-            NSLog("Eave: plugin scan failed: \(error)")
+            scanError = "Could not read Scripts Folder. \(error.localizedDescription)"
         }
+        objectWillChange.send()
     }
 
-    private func tick() async {
+    func isRunning(_ plugin: Plugin) async -> Bool {
+        await scheduler.isRunning(plugin)
+    }
+
+    func attachTouchBar(to window: NSWindow) {
+        touchBarPresenter.attach(to: window)
+    }
+
+    func openPluginsFolder() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: pluginsDirectory, isDirectory: true))
+    }
+
+    func tick() async {
         if watcherFailed {
             rescanPlugins()
         }
+        await scanTask?.value
         await scheduler.tick()
     }
 
     private func handleDelivery(plugin: Plugin, outcome: PluginOutcome) {
+        guard plugins.contains(plugin) else { return }
         menuBarRenderer.registerPluginScriptPath(plugin.path, for: plugin.namespace)
         switch outcome {
         case .items(let items):
@@ -201,7 +246,7 @@ final class AppState: ObservableObject {
     }
 
     private func refreshTouchBar() {
-        let items = touchBarItemsByNamespace.values.flatMap { $0 }
+        let items = touchBarItemsByNamespace.keys.sorted().flatMap { touchBarItemsByNamespace[$0] ?? [] }
         touchBarPresenter.update(scriptItems: items)
     }
 

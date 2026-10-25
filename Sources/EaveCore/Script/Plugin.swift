@@ -100,7 +100,7 @@ public enum PluginDiscovery {
             throw ScanError.directoryMissing(directory)
         }
 
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? []
+        let names = try FileManager.default.contentsOfDirectory(atPath: directory)
         var plugins: [Plugin] = []
         var rejections: [Rejection] = []
         var namespaceOwner: [String: String] = [:]

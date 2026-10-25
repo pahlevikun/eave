@@ -26,6 +26,7 @@ public enum PluginStatusText {
 
         if diagnostics.exitCode == 0 {
             return "ok, \(formatAge(since: diagnostics.finishedAt, now: now))"
+                + (diagnostics.outputTruncated ? ", output cut at 1 MB" : "")
         }
 
         if let code = diagnostics.exitCode {

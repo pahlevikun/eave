@@ -32,9 +32,6 @@ public enum MoveGeometry {
     /// refuses the reorder, more than 24 wastes 60 ms per item for no gain.
     public static func dragPath(from: Point, to: Point, steps: Int) -> [Point] {
         let count = min(max(steps, 4), 24)
-        if count == 1 {
-            return [from]
-        }
         return (0..<count).map { index in
             let t = Double(index) / Double(count - 1)
             return Point(

@@ -1,9 +1,9 @@
 import Foundation
 
-/// Runs a plugin script with a wall-clock timeout and an output cap.
+/// Runs a plugin script with a wall-clock timeout and a returned-output cap.
 ///
-/// A plugin is user code. It can hang, and it can flood stdout. Both get
-/// tamed here, not in the caller.
+/// Temporary output files can grow until execution ends. The read cap bounds
+/// returned memory, not disk use during execution.
 ///
 /// Output goes to a temp file rather than a pipe, for a concrete reason: a
 /// grandchild process (the `sleep` inside a shell) also holds the write end
@@ -23,8 +23,7 @@ public struct ScriptRunner: Sendable {
         case timedOut(seconds: Double)
     }
 
-    /// Output cap. 1 MB covers any reasonable plugin and stops a broken one
-    /// from eating disk or memory.
+    /// Maximum bytes read from each output file after execution.
     public static let outputLimit = 1 << 20
 
     public let timeout: TimeInterval
@@ -89,7 +88,7 @@ public struct ScriptRunner: Sendable {
             stdout: String(decoding: stdoutData.data, as: UTF8.self),
             stderr: String(decoding: stderrData.data, as: UTF8.self),
             exitCode: process.terminationStatus,
-            truncated: stdoutData.truncated
+            truncated: stdoutData.truncated || stderrData.truncated
         )
     }
 
@@ -103,10 +102,8 @@ public struct ScriptRunner: Sendable {
 
     /// SIGTERM first so the script can clean up, then SIGKILL.
     ///
-    /// The signal goes to the whole process group (`-pid`), not just the
-    /// child. The child is usually a shell, and the grandchild (`sleep`,
-    /// `curl`) is what actually hangs. Killing the shell leaves the
-    /// grandchild alive, and `waitUntilExit()` then waits for it.
+    /// Signals target the child's process group. Descendants that move to
+    /// another group are not supervised by this runner.
     private func terminate(_ process: Process) {
         let pid = process.processIdentifier
         kill(-pid, SIGTERM)

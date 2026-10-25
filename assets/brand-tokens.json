@@ -1,0 +1,11 @@
+{
+  "bg": "#171815",
+  "surface": "#23251f",
+  "surface2": "#2d3028",
+  "line": "#3b3e34",
+  "fg": "#f4f1e9",
+  "muted": "#b9b8ad",
+  "dim": "#969b8b",
+  "accent": "#f0b45b",
+  "provenance": "New brand palette chosen for this kit; native AppKit semantic colors are retained in the application. Inspired by the prior amber/ink header, not sampled or claimed as extracted tokens."
+}

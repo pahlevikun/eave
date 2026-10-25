@@ -15,3 +15,13 @@ let package = Package(
         .testTarget(name: "EaveKitTests", dependencies: ["EaveKit", "EaveCore"]),
     ]
 )
+
+#if os(macOS)
+package.targets += [
+    .target(
+        name: "EaveApplication", dependencies: ["EaveCore", "EaveKit"],
+        path: "Eave", exclude: ["EaveApp.swift", "AppDelegate.swift", "Info.plist"]
+    ),
+    .testTarget(name: "EaveApplicationTests", dependencies: ["EaveApplication", "EaveCore"]),
+]
+#endif

@@ -48,14 +48,14 @@ public final class MenuBarRenderer {
 
     public func remove(namespace: String) {
         separatedForHide.remove(namespace)
+        pluginScriptPathByNamespace.removeValue(forKey: namespace)
         guard let item = statusItems.removeValue(forKey: namespace) else { return }
         NSStatusBar.system.removeStatusItem(item)
-        pluginScriptPathByNamespace.removeValue(forKey: namespace)
     }
 
     public var itemCount: Int { statusItems.count }
 
-    /// Members left of the hide separator, in bar order.
+    /// Members in deterministic namespace order.
     public func sectionMembers() -> [SectionMembership] {
         orderedNamespaces().map { namespace in
             SectionMembership(id: namespace, isMovable: true, isHideable: true)
@@ -115,7 +115,7 @@ public final class MenuBarRenderer {
     }
 
     private func orderedNamespaces() -> [String] {
-        Array(statusItems.keys)
+        statusItems.keys.sorted()
     }
 
     private func statusItem(for namespace: String) -> NSStatusItem {
