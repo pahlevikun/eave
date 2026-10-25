@@ -1,0 +1,58 @@
+# Unsigned release build. macOS will refuse to open the app until the user
+# overrides Gatekeeper manually. This workflow does not sign or notarize.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build Eave (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Eave.xcodeproj \
+            -scheme Eave \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -disable-round-trip-debug-types' \
+            build
+
+      - name: Zip Eave.app
+        run: |
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/Eave.app"
+          test -d "$APP"
+          ditto -c -k --keepParent "$APP" Eave.zip
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Eave-unsigned
+          path: Eave.zip
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Eave.zip
+          generate_release_notes: true
